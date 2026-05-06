@@ -1,0 +1,27 @@
+"""Production."""
+import sentry_sdk
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
+
+from .base import *  # noqa: F401,F403
+from .base import env
+
+DEBUG = False
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+if env.sentry_dsn:
+    sentry_sdk.init(
+        dsn=env.sentry_dsn,
+        environment=env.environment,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        send_default_pii=False,
+    )

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: imresamu/postgis-vector:16-3.4
+        env:
+          POSTGRES_USER: aireality
+          POSTGRES_PASSWORD: aireality
+          POSTGRES_DB: aireality_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aireality"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+
+    env:
+      DATABASE_URL: postgres://aireality:aireality@localhost:5432/aireality_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: test-secret-key-with-enough-length-1234567890
+      DEBUG: "false"
+      DJANGO_SETTINGS_MODULE: config.settings.test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.4"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install GDAL (for GeoDjango)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Init extensions in test DB
+        run: |
+          PGPASSWORD=aireality psql -h localhost -U aireality -d aireality_test \
+            -c "CREATE EXTENSION IF NOT EXISTS postgis; \
+                CREATE EXTENSION IF NOT EXISTS vector; \
+                CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy)
+        run: uv run mypy apps config
+
+      - name: Migrations check
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: uv run pytest --cov=apps --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
