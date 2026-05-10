@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: imresamu/postgis-vector:16-3.4
+    image: imresamu/postgis:16-3.5-bundle0
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

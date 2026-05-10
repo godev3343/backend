@@ -1,0 +1,22 @@
+{
+  "categories": [
+    {"slug": "cafe", "name_ru": "Кафе", "name_kk": "Кафе"},
+    {"slug": "bar", "name_ru": "Бар", "name_kk": "Бар"},
+    {"slug": "restaurant", "name_ru": "Ресторан", "name_kk": "Мейрамхана"},
+    {"slug": "coworking", "name_ru": "Коворкинг", "name_kk": ""},
+    {"slug": "club", "name_ru": "Клуб", "name_kk": "Клуб"}
+  ],
+  "places": [
+    {
+      "name": "Coffee Boom EXPO",
+      "category_slug": "cafe",
+      "lat": 51.0908, "lng": 71.4187,
+      "address": "пр. Кабанбай батыра, 11/1",
+      "description": "Кофейня в районе EXPO",
+      "vibes": [
+        {"tag": "calm", "weight": 0.7},
+        {"tag": "productive", "weight": 0.6}
+      ]
+    }
+  ]
+}

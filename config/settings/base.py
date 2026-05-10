@@ -4,14 +4,14 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class AppSettings(BaseSettings):
-    """Типизированные env-переменные. Падаем на старте, если что-то не так."""
+    """Типизированные env-переменные. Падаем на старте если что-то не так."""
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -23,23 +23,22 @@ class AppSettings(BaseSettings):
     # Core
     secret_key: str = Field(min_length=32)
     debug: bool = False
-    allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
+    # Списки храним как строку, парсим в _parse_list (CSV или JSON)
+    allowed_hosts: str = "*"
 
-    # Database
-    database_url: str  # postgres://user:pass@host:5432/db
-
-    # Redis / Celery
-    redis_url: str  # redis://host:6379/0
+    # Database / Redis
+    database_url: str
+    redis_url: str
 
     # Cloudflare R2
     r2_account_id: str = ""
     r2_access_key: str = ""
     r2_secret_key: str = ""
     r2_bucket: str = ""
-    r2_public_url: str = ""  # https://media.realitymap.kz
+    r2_public_url: str = ""
 
-    # ---------- AI ----------
-    ai_provider: str = "gemini"  # 'gemini' | 'anthropic'
+    # AI
+    ai_provider: str = "gemini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     anthropic_api_key: str = ""
@@ -48,13 +47,29 @@ class AppSettings(BaseSettings):
     # Google OAuth
     google_oauth_client_id: str = ""
 
-
     # Sentry
     sentry_dsn: str = ""
-    environment: str = "dev"  # dev / staging / prod
+    environment: str = "dev"
 
     # CORS
-    cors_allowed_origins: list[str] = Field(default_factory=list)
+    cors_allowed_origins: str = ""
+
+
+def _parse_list(raw: str) -> list[str]:
+    """Превращает строку env в list[str]. Принимает CSV или JSON."""
+    import json
+
+    s = (raw or "").strip()
+    if not s:
+        return []
+    if s.startswith("["):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return [str(x) for x in parsed]
+        except json.JSONDecodeError:
+            pass  # упадём на CSV-парсинге ниже
+    return [item.strip() for item in s.split(",") if item.strip()]
 
 
 env = AppSettings()  # type: ignore[call-arg]
@@ -71,7 +86,7 @@ ANTHROPIC_MODEL = env.anthropic_model
 
 SECRET_KEY = env.secret_key
 DEBUG = env.debug
-ALLOWED_HOSTS = env.allowed_hosts
+ALLOWED_HOSTS = _parse_list(env.allowed_hosts) or ["*"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -90,8 +105,19 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "django_celery_beat",
+    # Local
     "apps.core",
+    "apps.users",
+    "apps.social",
+    "apps.places",
+    "apps.checkins",
+    "apps.feed",
+    "apps.events",
+    "apps.gamification",
+    "apps.media",
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -203,7 +229,7 @@ SPECTACULAR_SETTINGS = {
 
 # ---------- CORS -------------------------------------------------------------
 
-CORS_ALLOWED_ORIGINS = env.cors_allowed_origins
+CORS_ALLOWED_ORIGINS = _parse_list(env.cors_allowed_origins)
 CORS_ALLOW_CREDENTIALS = True
 
 # ---------- Celery -----------------------------------------------------------

@@ -1,0 +1,20 @@
+{
+  "events": [
+    {
+      "title": "Джаз-вечер в Mama Mia",
+      "description": "Лайв-выступление местного трио",
+      "place_name": "Mama Mia Astana",
+      "starts_at": "2026-05-20T20:00:00",
+      "ends_at": "2026-05-20T23:00:00",
+      "cover_url": ""
+    },
+    {
+      "title": "Open Air на набережной",
+      "description": "Музыка под открытым небом",
+      "place_name": null,
+      "lat": 51.1280, "lng": 71.4500,
+      "starts_at": "2026-05-25T18:00:00",
+      "ends_at": "2026-05-25T22:00:00"
+    }
+  ]
+}

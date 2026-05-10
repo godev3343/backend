@@ -1,4 +1,3 @@
-# Justfile
 set dotenv-load := true
 
 default:
@@ -6,7 +5,7 @@ default:
 
 # --- Local dev ---
 dev:
-    docker compose -f deploy/docker-compose.yml up -d
+    docker compose --env-file .env -f deploy/docker-compose.yml up -d
     uv run python manage.py runserver 0.0.0.0:8000
 
 worker:
@@ -55,7 +54,3 @@ docker-down:
 
 docker-logs:
     docker compose --env-file .env -f deploy/docker-compose.yml logs -f
-
-dev:
-    docker compose --env-file .env -f deploy/docker-compose.yml up -d
-    uv run python manage.py runserver 0.0.0.0:8000
