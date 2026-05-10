@@ -39,10 +39,18 @@ class Event(TimestampedModel):
         constraints = [
             # Должна быть либо привязка к Place, либо явные координаты
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(place__isnull=False) | models.Q(location__isnull=False)
                 ),
                 name="event_has_place_or_location",
+            ),
+            # Если ends_at задан — он должен быть позже starts_at
+            models.CheckConstraint(
+                condition=(
+                    models.Q(ends_at__isnull=True)
+                    | models.Q(ends_at__gt=models.F("starts_at"))
+                ),
+                name="event_ends_after_starts",
             ),
         ]
 

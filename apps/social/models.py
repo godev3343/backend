@@ -47,7 +47,7 @@ class Friendship(CreatedAtModel):
                 name="friendship_unique_pair",
             ),
             models.CheckConstraint(
-                check=~models.Q(from_user=models.F("to_user")),
+                condition=~models.Q(from_user=models.F("to_user")),
                 name="friendship_no_self",
             ),
         ]

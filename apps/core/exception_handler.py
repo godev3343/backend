@@ -18,10 +18,10 @@ def api_exception_handler(exc: Exception, context: dict) -> Response | None:
     """
     # Доменные ошибки конвертируем в DRF-исключения с кодом
     if isinstance(exc, DomainError):
-        return Response(
-            {"detail": exc.message, "code": exc.code, "errors": exc.errors},
-            status=exc.status_code,
-        )
+        payload: dict = {"detail": exc.message, "code": exc.code}
+        if exc.errors is not None:
+            payload["errors"] = exc.errors
+        return Response(payload, status=exc.status_code)
 
     response = exception_handler(exc, context)
 

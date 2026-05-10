@@ -1,10 +1,11 @@
+# config/settings/base.py
 """Base settings — общие для всех окружений."""
 from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -23,7 +24,6 @@ class AppSettings(BaseSettings):
     # Core
     secret_key: str = Field(min_length=32)
     debug: bool = False
-    # Списки храним как строку, парсим в _parse_list (CSV или JSON)
     allowed_hosts: str = "*"
 
     # Database / Redis
@@ -44,8 +44,19 @@ class AppSettings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5"
 
-    # Google OAuth
-    google_oauth_client_id: str = ""
+    # Google OAuth — список client_id через CSV (web + ios + android могут различаться)
+    google_oauth_client_ids: str = ""
+
+    # Email (Gmail SMTP по умолчанию)
+    email_host: str = "smtp.gmail.com"
+    email_port: int = 587
+    email_host_user: str = ""
+    email_host_password: str = ""
+    email_use_tls: bool = True
+    default_from_email: str = "AI Reality Map <projectgodev22315@gmail.com>"
+
+    # Frontend (для ссылок в письмах)
+    frontend_url: str = "http://localhost:3000"
 
     # Sentry
     sentry_dsn: str = ""
@@ -68,7 +79,7 @@ def _parse_list(raw: str) -> list[str]:
             if isinstance(parsed, list):
                 return [str(x) for x in parsed]
         except json.JSONDecodeError:
-            pass  # упадём на CSV-парсинге ниже
+            pass
     return [item.strip() for item in s.split(",") if item.strip()]
 
 
@@ -81,6 +92,24 @@ GEMINI_API_KEY = env.gemini_api_key
 GEMINI_MODEL = env.gemini_model
 ANTHROPIC_API_KEY = env.anthropic_api_key
 ANTHROPIC_MODEL = env.anthropic_model
+
+# ---------- Google OAuth -------------------------------------------------
+
+GOOGLE_OAUTH_CLIENT_IDS = _parse_list(env.google_oauth_client_ids)
+
+# ---------- Frontend -----------------------------------------------------
+
+FRONTEND_URL = env.frontend_url.rstrip("/")
+
+# ---------- Email (Gmail SMTP) -------------------------------------------
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env.email_host
+EMAIL_PORT = env.email_port
+EMAIL_HOST_USER = env.email_host_user
+EMAIL_HOST_PASSWORD = env.email_host_password
+EMAIL_USE_TLS = env.email_use_tls
+DEFAULT_FROM_EMAIL = env.default_from_email
 
 # ---------- Django -----------------------------------------------------------
 
@@ -115,9 +144,18 @@ INSTALLED_APPS = [
     "apps.events",
     "apps.gamification",
     "apps.media",
+    "apps.ai",
 ]
 
 AUTH_USER_MODEL = "users.User"
+
+# Argon2 первым — для новых паролей. PBKDF2 — для старых.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -137,7 +175,7 @@ ASGI_APPLICATION = "config.asgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -151,8 +189,7 @@ TEMPLATES = [
 ]
 
 # ---------- Database (PostGIS) -----------------------------------------------
-# psycopg3 + parsed url. Для GeoDjango — engine postgis.
-import dj_database_url  # noqa: E402 — нужен после env
+import dj_database_url  # noqa: E402
 
 DATABASES = {
     "default": {
@@ -161,13 +198,36 @@ DATABASES = {
     }
 }
 
+# ---------- Cache (Redis) ---------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env.redis_url,
+    },
+}
+
+# ---------- Celery ----------------------------------------------------------
+
+CELERY_BROKER_URL = env.redis_url
+CELERY_RESULT_BACKEND = env.redis_url
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "apps.media.tasks.*": {"queue": "media"},
+    "apps.ai.tasks.*": {"queue": "ai"},
+    "apps.users.tasks.*": {"queue": "default"},
+}
+
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-     "OPTIONS": {"min_length": 8}},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
 ]
 
 LANGUAGE_CODE = "ru"
+FORMS_URLFIELD_ASSUME_HTTPS = True
 TIME_ZONE = "Asia/Almaty"
 USE_I18N = True
 USE_TZ = True
@@ -202,6 +262,11 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
         "ai_recommend": "30/hour",
         "upload_presign": "60/hour",
+        "auth_login": "5/min",
+        "auth_register": "5/min",
+        "email_verify_request": "5/hour",
+        "password_reset_request": "5/hour",
+        "google_auth": "10/min",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -224,89 +289,24 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Backend API for the social city map.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "COMPONENT_SPLIT_REQUEST": True,
 }
 
-# ---------- CORS -------------------------------------------------------------
-
-CORS_ALLOWED_ORIGINS = _parse_list(env.cors_allowed_origins)
-CORS_ALLOW_CREDENTIALS = True
-
-# ---------- Celery -----------------------------------------------------------
-
-CELERY_BROKER_URL = env.redis_url
-CELERY_RESULT_BACKEND = env.redis_url
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 5 * 60  # hard kill 5 min
-CELERY_TASK_SOFT_TIME_LIMIT = 4 * 60
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_ACKS_LATE = True  # переотправка при падении воркера
-CELERY_TASK_REJECT_ON_WORKER_LOST = True
-
-CELERY_TASK_ROUTES = {
-    "apps.media.tasks.*": {"queue": "media"},
-    "apps.ai.tasks.*": {"queue": "ai"},
-    "*": {"queue": "default"},
-}
-
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-
-# ---------- Cache (Redis) ----------------------------------------------------
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env.redis_url,
-        "TIMEOUT": 300,
-    }
-}
-
-# ---------- Logging (structlog) ---------------------------------------------
-
-import structlog  # noqa: E402
+# ---------- Logging ---------------------------------------------------------
+import logging  # noqa: E402
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "json": {
-            "()": "structlog.stdlib.ProcessorFormatter",
-            "processor": structlog.processors.JSONRenderer(),
-        },
-        "console": {
-            "()": "structlog.stdlib.ProcessorFormatter",
-            "processor": structlog.dev.ConsoleRenderer(colors=True),
-        },
+        "json": {"()": "structlog.stdlib.ProcessorFormatter", "processor": __import__("structlog").processors.JSONRenderer()},
     },
     "handlers": {
-        "default": {
-            "class": "logging.StreamHandler",
-            "formatter": "json" if not env.debug else "console",
-        },
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
     },
-    "root": {"handlers": ["default"], "level": "INFO"},
+    "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
-        "django": {"level": "INFO", "propagate": True},
-        "celery": {"level": "INFO", "propagate": True},
-        "django.db.backends": {"level": "WARNING"},  # SQL только в dev отдельно
+        "django.db.backends": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
 
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-    ],
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,
-    cache_logger_on_first_use=True,
-)
+CORS_ALLOWED_ORIGINS = _parse_list(env.cors_allowed_origins)

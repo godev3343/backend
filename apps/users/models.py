@@ -49,6 +49,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Геймификация
     points = models.PositiveIntegerField(default=0)
 
+    # Email verification (для EPIC 2)
+    # Google-юзеры получают timestamp сразу при первом OAuth-логине.
+    email_verified_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
     # Системное
     consent_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -77,6 +81,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     def public_name(self) -> str:
         """Что показываем другим юзерам — display_name если есть, иначе first_name."""
         return self.display_name or self.first_name
+
+    @property
+    def is_email_verified(self) -> bool:
+        return self.email_verified_at is not None
 
     @property
     def is_onboarded(self) -> bool:

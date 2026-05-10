@@ -31,6 +31,9 @@ class CheckIn(CreatedAtModel):
         related_name="checkins",
     )
 
+    # Денормализация — обновляется атомарно через F() при like/unlike (EPIC 6)
+    likes_count = models.PositiveIntegerField(default=0)
+
     class Meta:
         db_table = "checkins_checkin"
         indexes = [

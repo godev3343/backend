@@ -6,8 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 from django.utils.timezone import make_aware
 
@@ -18,14 +19,12 @@ from apps.places.models import Place
 class Command(BaseCommand):
     help = "Сидит события из fixtures/events.json"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--file", type=str, default="fixtures/events.json")
         parser.add_argument("--clear", action="store_true")
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
-        from django.conf import settings
-
         path = Path(settings.BASE_DIR) / options["file"]
         if not path.exists():
             self.stderr.write(self.style.ERROR(f"Не найден файл {path}"))
@@ -48,11 +47,17 @@ class Command(BaseCommand):
                 location = Point(item["lng"], item["lat"], srid=4326)
 
             if place is None and location is None:
-                self.stderr.write(f"Пропущено '{item['title']}' — нет ни place, ни координат")
+                self.stderr.write(
+                    f"Пропущено '{item['title']}' — нет ни place, ни координат"
+                )
                 continue
 
             starts_at = make_aware(datetime.fromisoformat(item["starts_at"]))
-            ends_at = make_aware(datetime.fromisoformat(item["ends_at"])) if item.get("ends_at") else None
+            ends_at = (
+                make_aware(datetime.fromisoformat(item["ends_at"]))
+                if item.get("ends_at")
+                else None
+            )
 
             _, was_created = Event.objects.update_or_create(
                 title=item["title"],

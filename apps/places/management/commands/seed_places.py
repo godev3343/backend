@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
 from apps.places.models import Place, PlaceCategory, PlaceVibe
@@ -15,7 +16,7 @@ from apps.places.models import Place, PlaceCategory, PlaceVibe
 class Command(BaseCommand):
     help = "Сидит места и вайбы из fixtures/places.json"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--file",
             type=str,
@@ -30,8 +31,6 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
-        from django.conf import settings
-
         path = Path(settings.BASE_DIR) / options["file"]
         if not path.exists():
             self.stderr.write(self.style.ERROR(f"Не найден файл {path}"))
@@ -73,7 +72,7 @@ class Command(BaseCommand):
                 },
             )
 
-            # Вайбы
+            # Вайбы — пересоздаём каждый раз, чтобы сидинг был идемпотентен
             PlaceVibe.objects.filter(place=place).delete()
             for vibe in item.get("vibes", []):
                 PlaceVibe.objects.create(
@@ -85,4 +84,4 @@ class Command(BaseCommand):
             if was_created:
                 created += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Готово. Новых: {created}, всего обработано: {len(data.get('places', []))}"))
+        self.stdout.write(self.style.SUCCESS(f"Готово. Новых: {created}"))
