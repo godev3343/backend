@@ -38,14 +38,16 @@ class AppSettings(BaseSettings):
     r2_bucket: str = ""
     r2_public_url: str = ""  # https://media.realitymap.kz
 
-    # Anthropic
+    # ---------- AI ----------
+    ai_provider: str = "gemini"  # 'gemini' | 'anthropic'
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5"
 
     # Google OAuth
     google_oauth_client_id: str = ""
 
-    # SMS (Mobizon)
-    mobizon_api_key: str = ""
 
     # Sentry
     sentry_dsn: str = ""
@@ -56,6 +58,14 @@ class AppSettings(BaseSettings):
 
 
 env = AppSettings()  # type: ignore[call-arg]
+
+# ---------- AI -----------------------------------------------------------
+
+AI_PROVIDER = env.ai_provider
+GEMINI_API_KEY = env.gemini_api_key
+GEMINI_MODEL = env.gemini_model
+ANTHROPIC_API_KEY = env.anthropic_api_key
+ANTHROPIC_MODEL = env.anthropic_model
 
 # ---------- Django -----------------------------------------------------------
 
@@ -89,7 +99,6 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -165,7 +174,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
-        "auth_sms": "5/hour",
         "ai_recommend": "30/hour",
         "upload_presign": "60/hour",
     },

@@ -48,10 +48,14 @@ seed:
 
 # --- Docker ---
 docker-up:
-    docker compose -f deploy/docker-compose.yml up -d
+    docker compose --env-file .env -f deploy/docker-compose.yml up -d
 
 docker-down:
-    docker compose -f deploy/docker-compose.yml down
+    docker compose --env-file .env -f deploy/docker-compose.yml down
 
 docker-logs:
-    docker compose -f deploy/docker-compose.yml logs -f
+    docker compose --env-file .env -f deploy/docker-compose.yml logs -f
+
+dev:
+    docker compose --env-file .env -f deploy/docker-compose.yml up -d
+    uv run python manage.py runserver 0.0.0.0:8000

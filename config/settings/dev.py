@@ -1,12 +1,12 @@
 """Local development."""
 from .base import *  # noqa: F401,F403
-from .base import LOGGING, env
+from .base import LOGGING
 
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
-# Включить SQL-логи в dev по необходимости через env
-LOGGING["loggers"]["django.db.backends"]["level"] = "INFO" if env.debug else "WARNING"
+# SQL-логи в dev — управляются явно через env DJANGO_SQL_ECHO
+import os  # noqa: E402
 
-# В dev ничего не отправляем в Sentry
-# (sentry_init вызывается только в prod.py)
+if os.getenv("DJANGO_SQL_ECHO", "false").lower() == "true":
+    LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"

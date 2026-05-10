@@ -1,12 +1,10 @@
 services:
   postgres:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.postgres
+    image: imresamu/postgis-vector:16-3.4
     environment:
-      POSTGRES_DB: aireality
-      POSTGRES_USER: aireality
-      POSTGRES_PASSWORD: aireality
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -17,14 +15,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
-  # pgvector — отдельный image не нужен, ставим как extension.
-  # postgis/postgis:16-3.4 — pg 16, в нём `CREATE EXTENSION vector`
-  # требует пакет. Альтернатива — image pgvector/pgvector:pg16,
-  # но тогда нужен PostGIS поверх.
-  # Решение: используем кастомный образ. См. ниже Dockerfile.postgres
-  # Для упрощения локалки можно использовать готовый imresamu/postgis-vector:
-  # image: imresamu/postgis-arm64:16-3.4-vector
 
   redis:
     image: redis:7-alpine

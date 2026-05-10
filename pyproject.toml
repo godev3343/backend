@@ -25,6 +25,7 @@ dependencies = [
     # Auth
     "google-auth>=2.35",
     # AI
+    "google-genai>=0.3",
     "anthropic>=0.39",
     # Image processing
     "pillow>=11.0",
@@ -51,6 +52,7 @@ dev = [
     "respx>=0.21",
     "freezegun>=1.5",
     "pre-commit>=4.0",
+    "pytest-asyncio>=0.24",
 ]
 
 [tool.uv]
