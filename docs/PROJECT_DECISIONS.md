@@ -262,3 +262,40 @@ CheckInService и т.д. — каждый со своими ошибками и 
 - 2026-05-11: разделение apps/users/{services,serializers,views} на под-пакеты
 - 2026-05-11: DomainError остался Exception (не APIException), AuthError
   наследуется от него
+
+
+## EPIC 3 — Профиль и друзья
+
+### Decline = hard delete
+В декомпозиции EPIC 3.6 не уточнено поведение decline. Выбрали hard delete
+вместо `status=declined`:
+- Проще логика (нет специального статуса).
+- Можно повторно отправить заявку после decline без retry-механизма
+  поверх unique-constraint.
+- Нет накопления мусорных строк со временем.
+Минус: нет истории отклонённых заявок (если понадобится для антиспама —
+вернёмся к статусу `declined`).
+
+### Counter-pending auto-accept в send_request
+Если b → a уже pending, и a отправляет заявку b — автоматически становится
+accepted (одна запись b → a, status=accepted). Устраняет race-сценарий
+двойного pending, когда оба добавили друг друга одновременно.
+
+В декомпозиции этого не было; стандартная альтернатива — отдавать 409
+"friendship_exists" и заставлять второго юзера найти входящую и принять.
+Решили в пользу UX.
+
+### cancel_request — отдельный эндпоинт
+DELETE /api/friends/requests/{id} — отмена своей исходящей заявки.
+В декомпозиции его не было, но без него фронт не может убрать отправленную
+заявку. Permission: только from_user.
+
+### Поинты за accept — отложено до EPIC 9
+TODO-хуки оставлены в FriendshipService.accept_request и в
+counter-pending-ветке send_request. PointsService.award вызовем в EPIC 9
+вместе с остальной геймификацией.
+
+### История значимых решений
+- 2026-05-11: EPIC 3 завершён — профиль, поиск, friendship-флоу;
+  counter-pending auto-accept, decline = hard delete, cancel_request
+  добавлен сверх ТЗ

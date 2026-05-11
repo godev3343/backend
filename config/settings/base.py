@@ -267,6 +267,8 @@ REST_FRAMEWORK = {
         "email_verify_request": "5/hour",
         "password_reset_request": "5/hour",
         "google_auth": "10/min",
+        "friend_request": "30/hour",
+        "user_search": "60/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

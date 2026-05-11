@@ -9,7 +9,7 @@ ALLOWED_HOSTS = ["*"]
 import os  # noqa: E402
 
 if os.getenv("DJANGO_SQL_ECHO", "false").lower() == "true":
-    LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG# config/settings/dev.py
+    LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG# config/settings/dev.py"
 """Local development."""
 import os
 
