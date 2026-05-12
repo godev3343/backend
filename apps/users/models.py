@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
+from apps.media.models import MediaAsset
 from apps.users.managers import CustomUserManager
 
 
@@ -43,7 +44,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Профиль (публичная часть)
     display_name = models.CharField(max_length=100, blank=True, default="")
-    avatar_url = models.URLField(blank=True, default="")
+    avatar_asset = models.ForeignKey(
+        MediaAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     bio = models.CharField(max_length=300, blank=True, default="")
 
     # Геймификация

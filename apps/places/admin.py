@@ -12,7 +12,9 @@ class PlaceVibeInline(gis_admin.TabularInline):
 class PlacePhotoInline(gis_admin.TabularInline):
     model = PlacePhoto
     extra = 0
-    readonly_fields = ("r2_key_original", "r2_key_feed", "r2_key_thumb", "width", "height", "created_at")
+    fields = ("asset", "uploaded_by", "created_at")
+    readonly_fields = ("created_at",)
+    raw_id_fields = ("uploaded_by", "asset")
 
 
 @gis_admin.register(Place)

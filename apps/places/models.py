@@ -88,6 +88,10 @@ class PlaceVibe(models.Model):
 
 
 class PlacePhoto(CreatedAtModel):
+    """
+    Фотография места.
+    """
+
     place = models.ForeignKey(
         Place,
         on_delete=models.CASCADE,
@@ -99,14 +103,20 @@ class PlacePhoto(CreatedAtModel):
         null=True,
         related_name="uploaded_place_photos",
     )
-    r2_key_original = models.CharField(max_length=500)
-    r2_key_feed = models.CharField(max_length=500, blank=True, default="")
-    r2_key_thumb = models.CharField(max_length=500, blank=True, default="")
-    width = models.PositiveIntegerField()
-    height = models.PositiveIntegerField()
+    asset = models.OneToOneField(
+        "media_app.MediaAsset",
+        on_delete=models.CASCADE,
+        related_name="place_photo",
+    )
 
     class Meta:
         db_table = "places_photo"
         indexes = [
-            models.Index(fields=("place", "-created_at"), name="placephoto_place_created_idx"),
+            models.Index(
+                fields=("place", "-created_at"),
+                name="placephoto_place_created_idx",
+            ),
         ]
+
+    def __str__(self) -> str:
+        return f"PlacePhoto#{self.pk} place={self.place_id}"

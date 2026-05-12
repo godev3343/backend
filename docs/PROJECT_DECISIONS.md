@@ -299,3 +299,36 @@ counter-pending-ветке send_request. PointsService.award вызовем в E
 - 2026-05-11: EPIC 3 завершён — профиль, поиск, friendship-флоу;
   counter-pending auto-accept, decline = hard delete, cancel_request
   добавлен сверх ТЗ
+
+## EPIC 4 — Медиа и R2 (закрыт 2026-05-11)
+
+### Single source of truth — MediaAsset
+PlacePhoto и User.avatar_asset ссылаются на MediaAsset через FK.
+В PlacePhoto и User не дублируются поля r2_key_*/width/height.
+
+### App label media_app
+`apps/media/apps.py` определяет `label = "media_app"` — default `media`
+конфликтует со встроенным Django.
+Таблица `media_asset` (явно через Meta.db_table).
+FK на MediaAsset идут через прямой импорт класса, не lazy-string —
+иначе `auth.checks.check_user_model` падает на инстанцировании User().
+
+### Avatar replacement через post_save сигнал
+При processing аватара (status: PENDING→PROCESSED) signals.py:
+1. Записывает new asset в User.avatar_asset
+2. Удаляет старый MediaAsset из БД и его файлы из R2 (bulk delete)
+
+Альтернатива — делать это в task. Сигнал выбран чтобы task не знал про User
+и не зависел от User-модели.
+
+### WebP конверсия — условная для original
+Если оригинал ≤ 2048px по длинной стороне — остаётся в исходном формате.
+Если был downscale — перезаписывается в WebP, старый ключ удаляется.
+Feed/thumb — всегда WebP (quality 85/80).
+
+### Min short side = 400px
+Меньше → MediaAsset.failure_reason=TOO_SMALL.
+
+### Тесты с transaction.on_commit
+Используется @pytest.mark.django_db(transaction=True) только в test_signals.py.
+Без этого on_commit callbacks не вызываются в pytest-django.

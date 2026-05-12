@@ -23,13 +23,15 @@ dependencies = [
     "redis>=5.1",
     # Storage
     "boto3>=1.35",
+    "botocore>=1.35",
     # Auth
     "google-auth>=2.35",
     # AI
     "google-genai>=0.3",
     "anthropic>=0.39",
     # Image processing
-    "pillow>=11.0",
+    "pillow>=11.0.0",
+    "pillow-heif>=0.18.0",
     # Observability
     "sentry-sdk[django]>=2.17",
     "structlog>=24.4",
@@ -54,6 +56,7 @@ dev = [
     "freezegun>=1.5",
     "pre-commit>=4.0",
     "pytest-asyncio>=0.24",
+    "moto[s3]>=5.0.0",
 ]
 
 [tool.uv]

@@ -35,7 +35,15 @@ class AppSettings(BaseSettings):
     r2_access_key: str = ""
     r2_secret_key: str = ""
     r2_bucket: str = ""
+    r2_endpoint_url: str = ""
     r2_public_url: str = ""
+
+    # Media uploads
+    upload_max_size_avatar: int = 5 * 1024 * 1024
+    upload_max_size_checkin: int = 20 * 1024 * 1024
+    upload_max_size_place: int = 20 * 1024 * 1024
+    upload_presign_ttl: int = 300
+    media_min_short_side: int = 400
 
     # AI
     ai_provider: str = "gemini"
@@ -84,6 +92,23 @@ def _parse_list(raw: str) -> list[str]:
 
 
 env = AppSettings()  # type: ignore[call-arg]
+
+# ---------- Cloudflare R2 / Media ----------------------------------------
+
+R2_ACCOUNT_ID = env.r2_account_id
+R2_ACCESS_KEY = env.r2_access_key
+R2_SECRET_KEY = env.r2_secret_key
+R2_BUCKET = env.r2_bucket
+R2_ENDPOINT_URL = env.r2_endpoint_url
+R2_PUBLIC_URL = env.r2_public_url.rstrip("/")
+
+UPLOAD_MAX_SIZE = {
+    "avatar": env.upload_max_size_avatar,
+    "checkin": env.upload_max_size_checkin,
+    "place": env.upload_max_size_place,
+}
+UPLOAD_PRESIGN_TTL = env.upload_presign_ttl
+MEDIA_MIN_SHORT_SIDE = env.media_min_short_side
 
 # ---------- AI -----------------------------------------------------------
 
@@ -261,7 +286,6 @@ REST_FRAMEWORK = {
         "anon": "100/hour",
         "user": "1000/hour",
         "ai_recommend": "30/hour",
-        "upload_presign": "60/hour",
         "auth_login": "5/min",
         "auth_register": "5/min",
         "email_verify_request": "5/hour",
@@ -269,6 +293,8 @@ REST_FRAMEWORK = {
         "google_auth": "10/min",
         "friend_request": "30/hour",
         "user_search": "60/hour",
+        "upload_presign": "60/hour",
+        "upload_confirm": "120/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
