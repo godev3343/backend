@@ -332,3 +332,103 @@ Feed/thumb — всегда WebP (quality 85/80).
 ### Тесты с transaction.on_commit
 Используется @pytest.mark.django_db(transaction=True) только в test_signals.py.
 Без этого on_commit callbacks не вызываются в pytest-django.
+
+## EPIC 5 — Карта и заведения
+
+### Permissions: AllowAny на /api/places и /api/places/{id}
+По ТЗ 2.2.4 карта — первая поверхность, которую видит юзер. Чтобы онбординг
+не превращался в "сначала зарегайся, потом смотри что у нас есть", read-доступ
+открыт всем. Запись через эти эндпоинты невозможна — только админка.
+
+### List отдаёт только is_verified=True
+В list-выдаче — только верифицированные места. Detail возвращает место по id
+независимо от is_verified (полезно для админских ссылок на пре-модерируемый
+контент). Если потом захотим прятать и detail — добавим фильтр в `build_detail_queryset`.
+
+### Кэш через версионирование, не delete_pattern
+Встроенный `django.core.cache.backends.redis.RedisCache` НЕ поддерживает
+`delete_pattern` — это метод django-redis. Чтобы не плодить зависимость,
+сделали версионируемый кэш: `places:version` (INCR в Redis) встроен в ключ
+`places:list:v{N}:...`. Любое save/delete Place/PlaceVibe/PlacePhoto делает
+`cache.incr('places:version')` — O(1), без сканирования ключей. Старые ключи
+протухают по TTL=60s.
+
+### BBox округляется до 3 знаков в cache key
+~110м точность. Без этого панорамирование карты на 10м каждый раз даёт
+cache miss из-за float-precision в bbox от клиента.
+
+### MAX_BBOX_SPAN_DEG = 2.0
+Запросы с диагональю больше 2° (≈220км) возвращают 400 `bbox_too_large`.
+Защита от DoS и от случайного запроса "верни мне всю Землю".
+
+### primary_vibe считается через Subquery
+В list-queryset аннотируется через `Subquery(PlaceVibe.objects.filter(place=OuterRef).order_by(-weight).values('tag')[:1])`.
+Без этого был бы N+1 (либо prefetch+Python-постфильтр на каждом маркере).
+
+### Мульти-vibe — OR semantics
+`?vibe=calm,romantic` возвращает места хотя бы с одним из вайбов. AND был бы
+слишком узкой выдачей (мало мест имеют 3+ сильных вайба).
+
+### thumb_url только PROCESSED-ассеты
+Если у места только pending-фото, `thumb_url=null` в list. Иначе на маркер
+прилетел бы оригинал (мог быть HEIC, который не открывается в браузере).
+
+### thumb-ассеты подгружаются вторым запросом
+В build_list_queryset аннотируется только `thumb_asset_id`. URL'ы для них
+загружаются одним батч-запросом по `id__in=[...]` в view. Альтернатива —
+JOIN на MediaAsset в основном queryset — увеличила бы payload по wire
+для типового случая, где много мест без фото.
+
+### Sorting в list через boolean ExpressionWrapper
+`order_by(Q(...))` запрещён в Django 5 (`Q` не имеет `.asc()`). Используем
+boolean-аннотации `_has_photo` / `_has_vibe` через `ExpressionWrapper(Q(...),
+BooleanField())` и сортируем по ним desc — у мест с фото и вайбом приоритет
+на карте.
+
+### recent_checkins — отдельный запрос, не Prefetch со slice
+`Prefetch('checkins', queryset=qs[:5])` применяет лимит к JOIN'у для всего
+набора, не per-place. На detail с одним местом случайно работает, но паттерн
+опасный — заменили на явный `CheckIn.objects.filter(place=place)[:N]`.
+
+### Signal на PlacePhoto тоже инвалидирует кэш
+Не только Place/PlaceVibe, но и PlacePhoto — потому что thumb_url попадает
+в list-payload.
+
+
+## EPIC 5 — Геокодинг (apps.geocoding)
+
+### Отдельное app
+Не часть apps.places. Геокодинг живёт своей жизнью: на этапе 2 заменим
+Mapbox на собственный Photon. Когда логика провайдера в отдельном app —
+миграция трогает только его, не сериализаторы Place.
+
+### Mapbox Geocoding API v6, free tier
+До 100k запросов в месяц бесплатно. Перенос на Photon — этап 2 (см. ТЗ 1.3).
+Endpoint `forward` (текст → координаты), `reverse` пока не нужен.
+
+### Прокси через бэк, не клиентский SDK
+По принципу ТЗ 1.4 "проксирование запросов через свой бэкенд":
+- Mapbox-токен не утекает в мобильные клиенты (referer-restriction на mobile не работает).
+- Throttle на нашей стороне (`geocode: 60/hour` per user).
+- Кэш Redis 24ч — экономит квоту.
+- Миграция на Photon — без релизов клиентов.
+
+### Permissions: IsAuthenticated
+Не AllowAny. Геокодинг проксирует платный апстрим — открывать анонимам
+приглашает к сжиганию квоты. Карта остаётся открытой (AllowAny на /api/places),
+а геокодинг — авторизованным.
+
+### Cache key — md5(normalized_query)
+Запрос приводится к lower + strip + collapse-whitespace, затем хэшируется
+в md5 (не для безопасности, для компактного детерминированного Redis-ключа).
+В ключ включена локаль и страна, чтобы один и тот же текст для ru/kk не
+конфликтовал.
+
+### Proximity НЕ участвует в cache key
+Запрос "Кафе" из Астаны и из Алматы вернёт разные топовые результаты, но для
+текущего use-case (поиск конкретного адреса админом) этого хватает. Если
+позже понадобится proximity-aware cache — добавим в ключ.
+
+### Country=kz по умолчанию
+Mapbox `country=kz` ограничивает выдачу Казахстаном — мы сейчас работаем
+только по KZ. Клиент может переопределить query-параметром `country`.

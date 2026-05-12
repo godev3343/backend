@@ -170,6 +170,7 @@ INSTALLED_APPS = [
     "apps.gamification",
     "apps.media",
     "apps.ai",
+    "apps.geocoding",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -295,6 +296,7 @@ REST_FRAMEWORK = {
         "user_search": "60/hour",
         "upload_presign": "60/hour",
         "upload_confirm": "120/hour",
+    "geocode": "60/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
