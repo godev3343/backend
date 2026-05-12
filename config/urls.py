@@ -15,4 +15,5 @@ urlpatterns = [
     path("api/", include("apps.media.urls", namespace="media")),
     path("api/", include("apps.places.urls", namespace="places")),
     path("api/", include("apps.geocoding.urls", namespace="geocoding")),
+    path("api/", include("apps.checkins.urls", namespace="checkins")),
 ]
