@@ -28,12 +28,9 @@ class OnboardingView(APIView):
 
         user = request.user
         user.display_name = data["display_name"]
-        user.avatar_url = data.get("avatar_url", "")
         user.bio = data.get("bio", "")
         user.consent_at = now()
-        user.save(
-            update_fields=["display_name", "avatar_url", "bio", "consent_at"]
-        )
+        user.save(update_fields=["display_name", "bio", "consent_at"])
 
         return Response(
             UserMeSerializer(
@@ -42,6 +39,7 @@ class OnboardingView(APIView):
                     "email": user.email,
                     "first_name": user.first_name,
                     "display_name": user.display_name,
+                    # avatar_url — @property, читает из user.avatar_asset
                     "avatar_url": user.avatar_url,
                     "bio": user.bio,
                     "points": user.points,

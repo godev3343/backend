@@ -103,13 +103,16 @@ class GoogleAuthService:
             return user, False
 
         # 3. Создаём
+        # profile.picture (URL аватара от Google) НЕ сохраняем — аватары в системе
+        # хранятся через MediaAsset с EXIF strip / WebP / тремя размерами. Внешний
+        # Google-URL без обработки нам не подходит. Юзер загрузит аватар через
+        # /api/upload/* во время или после онбординга.
         try:
             user = User.objects.create_user(  # type: ignore[attr-defined]
                 email=profile.email,
                 first_name=profile.given_name or "User",
                 last_name=profile.family_name,
                 google_sub=profile.sub,
-                avatar_url=profile.picture,
                 email_verified_at=now(),
             )
         except IntegrityError as exc:

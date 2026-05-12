@@ -96,3 +96,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_onboarded(self) -> bool:
         return self.consent_at is not None and bool(self.display_name)
+
+    @property
+    def avatar_url(self) -> str | None:
+        """
+        Унифицированный публичный URL аватара через MediaAsset.
+
+        Returns None, если аватар не привязан. При обработке (status != PROCESSED)
+        MediaAsset.url_feed сам решает что отдать — мы делегируем.
+
+        NB: при чтении из querysets со многими User'ами обязательно
+        `.select_related('avatar_asset')`, иначе N+1.
+        """
+        if self.avatar_asset_id is None:
+            return None
+        return self.avatar_asset.url_feed

@@ -36,7 +36,7 @@ from apps.users.permissions import IsOnboarded
 User = get_user_model()
 
 # Поля, которые юзер может обновлять через PATCH /me.
-_UPDATABLE_ME_FIELDS = ("first_name", "last_name", "display_name", "avatar_url", "bio")
+_UPDATABLE_ME_FIELDS = ("first_name", "last_name", "display_name", "bio")
 
 
 def _user_me_with_counts(user_id: int):  # type: ignore[no-untyped-def]
@@ -46,6 +46,7 @@ def _user_me_with_counts(user_id: int):  # type: ignore[no-untyped-def]
     """
     return (
         User.objects.filter(pk=user_id)
+        .select_related("avatar_asset")
         .annotate(
             checkins_count=Count("checkins", distinct=True),
             # friends_count = accepted-записи где user from OR to
@@ -125,6 +126,7 @@ class UserPublicView(APIView):
     def get(self, request: Request, user_id: int) -> Response:
         qs = (
             User.objects.filter(pk=user_id, is_active=True)
+            .select_related("avatar_asset")
             .annotate(
                 checkins_count=Count("checkins", distinct=True),
                 friends_count=(
@@ -181,6 +183,7 @@ class UserSearchView(GenericAPIView):
         qs = (
             User.objects.filter(is_active=True)
             .exclude(pk=request.user.pk)
+            .select_related("avatar_asset")
             .filter(
                 Q(display_name__icontains=q)
                 | Q(first_name__icontains=q)

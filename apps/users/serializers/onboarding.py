@@ -8,10 +8,11 @@ class OnboardingRequestSerializer(serializers.Serializer):
     """
     Заполнение профиля при первом входе.
     display_name обязателен — без него юзер считается not_onboarded.
+    Аватар грузится отдельно через /api/upload/* и привязывается к
+    user.avatar_asset сигналом — здесь не принимаем.
     """
 
     display_name = serializers.CharField(min_length=2, max_length=100)
-    avatar_url = serializers.URLField(required=False, allow_blank=True, default="")
     bio = serializers.CharField(
         required=False, allow_blank=True, max_length=300, default=""
     )

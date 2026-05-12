@@ -36,7 +36,8 @@ class UserMeUpdateSerializer(serializers.Serializer):
     PATCH /api/users/me — обновляемые поля.
 
     Email/phone/password не трогаем (это auth-флоу).
-    Все поля опциональны: PATCH с одним полем должен работать.
+    Аватар не принимается здесь — он грузится через /api/upload/* и
+    привязывается к user.avatar_asset через media-сигнал.
     """
 
     first_name = serializers.CharField(max_length=100, min_length=1, required=False)
@@ -46,7 +47,6 @@ class UserMeUpdateSerializer(serializers.Serializer):
     display_name = serializers.CharField(
         max_length=100, min_length=2, required=False
     )
-    avatar_url = serializers.URLField(allow_blank=True, required=False)
     bio = serializers.CharField(
         max_length=300, allow_blank=True, required=False
     )

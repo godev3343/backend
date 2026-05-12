@@ -192,7 +192,7 @@ class FriendshipService:
             Friendship.objects.filter(
                 to_user=user, status=FriendshipStatus.PENDING
             )
-            .select_related("from_user")
+            .select_related("from_user", "from_user__avatar_asset")
             .order_by("-created_at")
         )
 
@@ -203,7 +203,7 @@ class FriendshipService:
             Friendship.objects.filter(
                 from_user=user, status=FriendshipStatus.PENDING
             )
-            .select_related("to_user")
+            .select_related("to_user", "to_user__avatar_asset")
             .order_by("-created_at")
         )
 
@@ -223,7 +223,11 @@ class FriendshipService:
         ).values_list("from_user_id", flat=True)
 
         friend_ids = list(outgoing_ids) + list(incoming_ids)
-        return User.objects.filter(pk__in=friend_ids).order_by("display_name", "id")
+        return (
+            User.objects.filter(pk__in=friend_ids)
+            .select_related("avatar_asset")
+            .order_by("display_name", "id")
+        )
 
     @classmethod
     def is_friends(cls, *, user_a_id: int, user_b_id: int) -> bool:

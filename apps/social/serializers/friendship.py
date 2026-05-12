@@ -9,7 +9,7 @@ class _UserBriefSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     display_name = serializers.CharField(source="public_name", read_only=True)
-    avatar_url = serializers.URLField(allow_blank=True)
+    avatar_url = serializers.URLField(allow_blank=True, allow_null=True)
 
 
 class IncomingFriendRequestSerializer(serializers.Serializer):
@@ -41,6 +41,6 @@ class FriendListItemSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     display_name = serializers.CharField(source="public_name", read_only=True)
-    avatar_url = serializers.URLField(allow_blank=True)
+    avatar_url = serializers.URLField(allow_blank=True, allow_null=True)
     bio = serializers.CharField(allow_blank=True)
     points = serializers.IntegerField()

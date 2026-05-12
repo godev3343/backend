@@ -523,3 +523,67 @@ overhead без выигрыша. Если позже появится "лент
 # ============================================================
 - 2026-05-12: EPIC 6 завершён — чек-ины, лента, лайки, PointsService;
   семантика FIRST_CHECKIN уточнена (нужны друзья, юзер включён в "уже был")
+## EPIC 7 — События
+
+### Денормализация `Event.location` из `Place.location`
+`Event.save()` копирует `place.location` в `event.location`, если событие
+привязано к Place. Миграция `events/0003_event_backfill_location.py`
+проставляет это для существующих ивентов.
+
+Зачем: `/api/events?bbox=...` фильтрует по одному GIST-индексу на
+`event.location` без JOIN на `places`. Альтернатива через COALESCE/JOIN
+работает, но усложняет план запроса и не даёт использовать индекс.
+
+Инвариант: если у события задан `place` — `event.location === place.location`,
+кастомный location перезаписывается. Кастомный location актуален только
+при `place=None`. Если `Place.location` поменяется в админке — связанные
+ивенты НЕ обновятся автоматически (на pre-MVP это явная зона ответственности
+админа; в Этапе 1 если будет нужно — добавим post_save сигнал на Place).
+
+### Семантика окна "событие активно в [from, to)"
+`starts_at < to AND (ends_at > from OR (ends_at IS NULL AND starts_at >= from))`.
+
+Это включает: одноразовые ивенты в будущем (нет ends_at, starts_at в окне),
+длящиеся (ends_at > from), и исключает закончившиеся. Прошедшие одноразовые
+(`starts_at < now, ends_at IS NULL`) исключаются автоматически при дефолтном
+`from = now`.
+
+`/api/events/{id}` не фильтрует по периоду — карточка доступна по прямой
+ссылке даже для прошедших событий.
+
+### Permissions: AllowAny
+По аналогии с EPIC 5. Афиша — это публичный контент, до регистрации
+должна быть видна для онбординга.
+
+### `cover_url` остался `URLField`, не MediaAsset
+Для pre-MVP события (~10 шт) добавляются админом вручную, картинка
+загружается в R2 через S3-клиент и URL копируется в форму. Перевод
+на MediaAsset с server-side upload в админке отложен до Этапа 1, когда
+B2B-кабинет начнёт создавать события с фронта.
+
+### bbox-парсинг продублирован, не вынесен в core
+30 строк в `apps/events/filters.py` — копия из `apps/places/filters.py`.
+Cross-app импорт `PlacesError` в events создал бы скрытую зависимость
+между несвязанными доменами. Если появится третий эндпоинт с bbox-фильтром
+(скорее всего AI-recommend в EPIC 8 — нет, там без bbox) — вынесем в
+`apps/core/geo.py`.
+
+### История значимых решений
+- 2026-05-12: EPIC 7 завершён — афиша, карточка, bbox-фильтр через
+  денормализованный `Event.location`, period-фильтр с семантикой
+  активного окна.
+
+### 2026-05-12: дочистка `User.avatar_url`
+Поле было удалено в EPIC 4 (миграция `users/0005_remove_user_avatar_url_user_avatar_asset`),
+но три места продолжали к нему обращаться:
+- `apps/social/serializers/{friendship,user_public,user_me}.py` — URLField без backing-атрибута
+- `apps/users/services/google.py` — передавал `avatar_url=profile.picture` в `create_user`
+- `apps/users/views/onboarding.py` — `user.save(update_fields=[..., 'avatar_url'])`
+
+Решение: добавили `@property User.avatar_url -> str | None` через `avatar_asset.url_feed`.
+Read-код продолжает работать без изменений. Write-стороны (PATCH /me,
+POST /onboarding, Google OAuth create) больше не принимают/не сохраняют
+`avatar_url` — аватары грузятся только через /api/upload/* флоу из EPIC 4.
+
+`profile.picture` от Google игнорируется: внешний URL без EXIF-strip и
+WebP-конверсии не вписывается в инвариант "все картинки — через MediaAsset".
