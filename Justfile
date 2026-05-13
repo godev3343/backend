@@ -121,8 +121,8 @@ reset-db:
 # --- Tests / quality ---
 
 # Запустить тесты (можно с аргументами: just test apps/users)
-test *args:
-    uv run pytest {{args}}
+test:
+    DJANGO_SETTINGS_MODULE=config.settings.test uv run pytest
 
 # Тесты с HTML coverage report
 test-cov:

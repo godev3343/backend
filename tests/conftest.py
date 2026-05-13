@@ -1,6 +1,11 @@
+# conftest.py
 """Глобальные фикстуры pytest."""
 
 from __future__ import annotations
+
+import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING

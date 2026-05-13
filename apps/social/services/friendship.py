@@ -1,3 +1,4 @@
+# apps/social/services/friendship.py
 """
 FriendshipService — управление заявками и дружбой.
 
@@ -76,7 +77,8 @@ class FriendshipService:
         # Блокируем строки между парой, чтобы избежать гонок при двойном клике.
         existing = list(
             Friendship.objects.select_for_update().filter(
-                Q(from_user=from_user, to_user=to_user) | Q(from_user=to_user, to_user=from_user)
+                Q(from_user=from_user, to_user=to_user)
+                | Q(from_user=to_user, to_user=from_user)
             )
         )
 
@@ -181,6 +183,92 @@ class FriendshipService:
             raise FriendshipNotFound()
 
         f.delete()
+
+    # ---------- queries ----------------------------------------------------
+
+    @classmethod
+    def incoming_requests(cls, *, user: UserType):
+        """
+        Pending-заявки где user = to_user. QuerySet[Friendship] с подгруженным
+        from_user — view сериализует его как brief.
+        """
+        return (
+            Friendship.objects.filter(
+                to_user=user,
+                status=FriendshipStatus.PENDING,
+            )
+            .select_related("from_user")
+            .order_by("-created_at", "-pk")
+        )
+
+    @classmethod
+    def outgoing_requests(cls, *, user: UserType):
+        """Pending-заявки где user = from_user."""
+        return (
+            Friendship.objects.filter(
+                from_user=user,
+                status=FriendshipStatus.PENDING,
+            )
+            .select_related("to_user")
+            .order_by("-created_at", "-pk")
+        )
+
+    @classmethod
+    def list_friends(cls, *, user: UserType):
+        """
+        Список друзей user — User-объекты (counterparty), не Friendship.
+        Покрывает обе стороны: user → friend (accepted) и friend → user (accepted).
+        Возвращаем User, потому что FriendListItemSerializer ждёт user-поля
+        (display_name/avatar_url/bio/points).
+        """
+        sent_ids = Friendship.objects.filter(
+            from_user=user, status=FriendshipStatus.ACCEPTED
+        ).values_list("to_user_id", flat=True)
+        received_ids = Friendship.objects.filter(
+            to_user=user, status=FriendshipStatus.ACCEPTED
+        ).values_list("from_user_id", flat=True)
+
+        friend_ids = set(sent_ids).union(received_ids)
+        return (
+            User.objects.filter(pk__in=friend_ids, is_active=True)
+            .order_by("display_name", "pk")
+        )
+
+    @classmethod
+    def is_friends(cls, *, user_a_id: int, user_b_id: int) -> bool:
+        """ACCEPTED в любом направлении. Self → False."""
+        if user_a_id == user_b_id:
+            return False
+        return (
+            Friendship.objects.filter(status=FriendshipStatus.ACCEPTED)
+            .filter(
+                Q(from_user_id=user_a_id, to_user_id=user_b_id)
+                | Q(from_user_id=user_b_id, to_user_id=user_a_id)
+            )
+            .exists()
+        )
+
+    @classmethod
+    @transaction.atomic
+    def remove_friend(cls, *, user: UserType, other_user_id: int) -> None:
+        """
+        Удалить дружбу (ACCEPTED) между user и other_user в любом направлении.
+        Pending не считается. Нет записи — FriendshipNotFound.
+
+        Поинты не отзываем (EPIC 9): однажды начислили — остаются; антифрод
+        и обнуление в Этапе 1.
+        """
+        qs = (
+            Friendship.objects.select_for_update()
+            .filter(status=FriendshipStatus.ACCEPTED)
+            .filter(
+                Q(from_user=user, to_user_id=other_user_id)
+                | Q(from_user_id=other_user_id, to_user=user)
+            )
+        )
+        deleted, _ = qs.delete()
+        if deleted == 0:
+            raise FriendshipNotFound()
 
     # ---------- internal helpers ------------------------------------------
 

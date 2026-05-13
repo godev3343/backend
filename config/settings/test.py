@@ -12,3 +12,8 @@ DATABASES["default"]["TEST"] = {"NAME": "test_aireality"}
 
 # Быстрый хешер паролей
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# Email — in-memory, чтобы mail.outbox заполнялся.
+# Без этого тесты на письма с verify-кодом и password-reset токеном
+# не могут извлечь тело письма.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
