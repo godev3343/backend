@@ -14,6 +14,10 @@ from apps.social.serializers.user_public import (
     UserSearchResultSerializer,
 )
 
+from apps.social.serializers.preferences import (
+    UserPreferencesSerializer,
+)
+
 __all__ = [
     "FriendListItemSerializer",
     "IncomingFriendRequestSerializer",
@@ -23,4 +27,5 @@ __all__ = [
     "UserMeUpdateSerializer",
     "UserPublicSerializer",
     "UserSearchResultSerializer",
+    "UserPreferencesSerializer",
 ]

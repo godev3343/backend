@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils import timezone
 
@@ -52,6 +53,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="+",
     )
     bio = models.CharField(max_length=300, blank=True, default="")
+
+    # preferred_vibes — выбранные на онбординге/в настройках теги вайбов, влияют
+    # на ранжирование в AI-промпте. Валидация значений — в сериализаторе,
+    # на уровне БД ArrayField не enforces choices.
+    preferred_vibes = ArrayField(
+        models.CharField(max_length=20),
+        size=5,
+        default=list,
+        blank=True,
+    )
+    # ai_context — свободный текст "о себе" для AI. До 500 символов.
+    # Подмешивается в user-сообщение к модели в /api/ai/recommend.
+    ai_context = models.CharField(max_length=500, blank=True, default="")
 
     # Геймификация
     points = models.PositiveIntegerField(default=0)

@@ -13,6 +13,7 @@ from apps.social.views import (
     IncomingFriendRequestsView,
     OutgoingFriendRequestsView,
     UserMeView,
+    UserPreferencesView,
     UserPublicView,
     UserSearchView,
 )
@@ -22,6 +23,11 @@ app_name = "social"
 urlpatterns = [
     # Profile
     path("users/me", UserMeView.as_view(), name="user_me"),
+    path(
+        "users/me/preferences",
+        UserPreferencesView.as_view(),
+        name="user_me_preferences",
+    ),
     path("users/search", UserSearchView.as_view(), name="user_search"),
     path(
         "users/<int:user_id>",

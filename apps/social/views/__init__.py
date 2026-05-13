@@ -14,6 +14,9 @@ from apps.social.views.user import (
     UserPublicView,
     UserSearchView,
 )
+from apps.social.views.preferences import (
+    UserPreferencesView,
+)
 
 __all__ = [
     "FriendListView",

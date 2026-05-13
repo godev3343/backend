@@ -36,7 +36,14 @@ from apps.users.permissions import IsOnboarded
 User = get_user_model()
 
 # Поля, которые юзер может обновлять через PATCH /me.
-_UPDATABLE_ME_FIELDS = ("first_name", "last_name", "display_name", "bio")
+_UPDATABLE_ME_FIELDS = (
+    "first_name",
+    "last_name",
+    "display_name",
+    "bio",
+    "preferred_vibes",
+    "ai_context",
+)
 
 
 def _user_me_with_counts(user_id: int):  # type: ignore[no-untyped-def]

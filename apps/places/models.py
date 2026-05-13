@@ -24,6 +24,19 @@ class PlaceCategory(models.Model):
         return self.name_ru
 
 
+class City(models.TextChoices):
+    """
+    Города, поддерживаемые приложением.
+    На pre-MVP — только Астана. На Этапе 1 добавятся Алматы, Шымкент и т.д.
+
+    Используется как фильтр в /api/places, /api/events и в AI context builder.
+    Альтернатива (отдельная таблица Cities) пока избыточна — список меняется
+    редко, JOIN бесполезен, фильтрация по slug достаточно эффективна с индексом.
+    """
+
+    ASTANA = "astana", "Астана"
+
+
 class Place(TimestampedModel):
     name = models.CharField(max_length=200)
     category = models.ForeignKey(
@@ -37,6 +50,12 @@ class Place(TimestampedModel):
     hours_json = models.JSONField(default=dict, blank=True)
     description = models.TextField(blank=True, default="")
     is_verified = models.BooleanField(default=False, db_index=True)
+    city = models.CharField(
+        max_length=32,
+        choices=City.choices,
+        default=City.ASTANA,
+        db_index=True,
+    )
 
     class Meta:
         db_table = "places_place"

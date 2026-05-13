@@ -587,3 +587,52 @@ POST /onboarding, Google OAuth create) больше не принимают/не
 
 `profile.picture` от Google игнорируется: внешний URL без EXIF-strip и
 WebP-конверсии не вписывается в инвариант "все картинки — через MediaAsset".
+
+# Дописать в конец docs/PROJECT_DECISIONS.md ПЕРЕД секцией
+# "## История значимых решений":
+
+## EPIC 8 prep — миграции и сидинг
+
+### `Place.city` — CharField с choices, не отдельная таблица
+На pre-MVP только Астана. Список городов меняется редко, JOIN на таблицу
+Cities ничего не выигрывает. CharField с `choices=City.choices` + db_index —
+индекс работает, ORM-чек на стороне Python, choices видны в админке.
+
+Дефолт `astana`. Существующие места после миграции остаются с дефолтом —
+это корректно, т.к. на момент миграции в БД только Астана.
+
+### `User.preferred_vibes` — ArrayField, не M2M-таблица
+Это всегда короткий список из фиксированных значений (≤ 5 строк по 20 байт).
+M2M-таблица UserVibePreference дала бы лишний JOIN на каждый запрос профиля.
+ArrayField с PG-native типом — один column, один read.
+
+Валидация значений — на уровне сериализатора (см. `apps/social/serializers/
+preferences_validation.py`), не constraint в БД, т.к. PG не enforces choices
+на массивах без custom check constraint.
+
+### `PATCH /api/users/me` и `PUT /api/users/me/preferences` — два эндпоинта
+Сознательное дублирование функциональности (оба пишут в одни и те же два поля),
+но семантика разная:
+- `PATCH /me` — частичный апдейт профиля как целого. Юзер редактирует "О себе"
+  и заодно поправил вайбы.
+- `PUT /preferences` — атомарная замена AI-настроек. Идемпотентно. Используется
+  в онбординг-флоу (фронт может повторить PUT при retry без побочных эффектов).
+
+Альтернатива (только PATCH /me) делала бы UX онбординга хуже: фронт обязан
+знать какие именно поля присылать, а PATCH с пустым `preferred_vibes` неоднозначен
+(`[]` = "очистить" vs "не трогать").
+
+### Сидер `seed_places` — расширен под `--city` и `meta.city` в фикстуре
+Один и тот же скрипт для дев-фикстур и для production-сида Астаны. Приоритет
+города: `places[].city` > `meta.city` > `--city` параметр > дефолт `astana`.
+Идемпотентность через `update_or_create` по `name` + удаление и пересоздание
+вайбов на каждый запуск.
+
+В фикстуре `fixtures/places_astana.json` — 50 реальных заведений с описаниями,
+координатами и вайб-разметкой вручную. На Этапе 1 vibe-разметка станет
+автоматической (Celery Beat + LLM), описания — из реальных отзывов.
+
+# В "## История значимых решений" допиши:
+- 2026-05-13: EPIC 8 prep — Place.city (default astana), User.preferred_vibes
+  + ai_context, PUT /api/users/me/preferences, seed_places расширен под --city,
+  fixtures/places_astana.json (50 мест)
