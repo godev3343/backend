@@ -2,6 +2,7 @@
 POST /api/checkins        — создать чек-ин.
 GET  /api/checkins/me     — история своих.
 """
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -95,9 +96,7 @@ class MyCheckInsView(ListAPIView):
             )
             return self.get_paginated_response(serializer.data)
 
-        liked_ids = self._collect_liked_ids(
-            user_id=request.user.pk, checkins=list(queryset)
-        )
+        liked_ids = self._collect_liked_ids(user_id=request.user.pk, checkins=list(queryset))
         serializer = self.get_serializer(
             queryset, many=True, context={"liked_ids": liked_ids, "request": request}
         )
@@ -110,7 +109,7 @@ class MyCheckInsView(ListAPIView):
             return set()
         checkin_ids = [c.pk for c in checkins]
         return set(
-            Like.objects.filter(
-                user_id=user_id, checkin_id__in=checkin_ids
-            ).values_list("checkin_id", flat=True)
+            Like.objects.filter(user_id=user_id, checkin_id__in=checkin_ids).values_list(
+                "checkin_id", flat=True
+            )
         )

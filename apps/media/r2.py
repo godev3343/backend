@@ -10,6 +10,7 @@ R2 — S3-совместимый object storage. Используем boto3 с �
   настраиваются в Cloudflare dashboard и приходят к нам в R2_PUBLIC_URL.
 - Bucket creation через консоль, не через API (можно через API, но смысла нет).
 """
+
 from __future__ import annotations
 
 import logging

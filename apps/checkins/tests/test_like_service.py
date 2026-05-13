@@ -1,11 +1,11 @@
 # apps/checkins/tests/test_like_service.py
 """Тесты LikeService: идемпотентность like/unlike и счётчик."""
+
 from __future__ import annotations
 
 import pytest
-from django.contrib.gis.geos import Point
 
-from apps.checkins.models import CheckIn, Like
+from apps.checkins.models import Like
 from apps.checkins.services import LikeResult, LikeService
 from apps.checkins.services.exceptions import CheckInNotFound
 from apps.checkins.tests.factories import CheckInFactory

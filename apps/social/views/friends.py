@@ -12,6 +12,7 @@
 Все требуют IsEmailVerified + IsOnboarded — чтобы не создавать связи
 до подтверждения личности юзера.
 """
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -31,7 +32,6 @@ from apps.social.serializers import (
 from apps.social.services import FriendshipService
 from apps.social.throttling import FriendRequestThrottle
 from apps.users.permissions import IsEmailVerified, IsOnboarded
-
 
 _PROTECTED = [IsAuthenticated, IsEmailVerified, IsOnboarded]
 
@@ -112,12 +112,8 @@ class FriendRequestAcceptView(APIView):
     permission_classes = _PROTECTED
 
     def post(self, request: Request, friendship_id: int) -> Response:
-        f = FriendshipService.accept_request(
-            user=request.user, friendship_id=friendship_id
-        )
-        return Response(
-            {"id": f.pk, "status": f.status}, status=status.HTTP_200_OK
-        )
+        f = FriendshipService.accept_request(user=request.user, friendship_id=friendship_id)
+        return Response({"id": f.pk, "status": f.status}, status=status.HTTP_200_OK)
 
 
 class FriendRequestDeclineView(APIView):
@@ -126,9 +122,7 @@ class FriendRequestDeclineView(APIView):
     permission_classes = _PROTECTED
 
     def post(self, request: Request, friendship_id: int) -> Response:
-        FriendshipService.decline_request(
-            user=request.user, friendship_id=friendship_id
-        )
+        FriendshipService.decline_request(user=request.user, friendship_id=friendship_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -138,9 +132,7 @@ class FriendRequestCancelView(APIView):
     permission_classes = _PROTECTED
 
     def delete(self, request: Request, friendship_id: int) -> Response:
-        FriendshipService.cancel_request(
-            user=request.user, friendship_id=friendship_id
-        )
+        FriendshipService.cancel_request(user=request.user, friendship_id=friendship_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -165,7 +157,5 @@ class FriendRemoveView(APIView):
     permission_classes = _PROTECTED
 
     def delete(self, request: Request, user_id: int) -> Response:
-        FriendshipService.remove_friend(
-            user=request.user, other_user_id=user_id
-        )
+        FriendshipService.remove_friend(user=request.user, other_user_id=user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -1,4 +1,5 @@
 """Smoke-тесты — приложение поднимается, health работает."""
+
 from __future__ import annotations
 
 import pytest

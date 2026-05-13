@@ -1,4 +1,5 @@
 """Пагинация по умолчанию: page-number, но с разумными дефолтами."""
+
 from rest_framework.pagination import PageNumberPagination
 
 

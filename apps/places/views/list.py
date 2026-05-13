@@ -9,6 +9,7 @@ Permissions: AllowAny.
 
 Кэш: 60с, версионируемый (см. apps/places/services/cache.py).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -60,9 +61,7 @@ class PlaceListView(GenericAPIView):
         # строку был бы отдельный hit в БД (или None, если делать иначе).
         thumb_ids = [p.thumb_asset_id for p in places if p.thumb_asset_id]
         thumb_assets_map: dict[int, MediaAsset] = (
-            {a.id: a for a in MediaAsset.objects.filter(id__in=thumb_ids)}
-            if thumb_ids
-            else {}
+            {a.id: a for a in MediaAsset.objects.filter(id__in=thumb_ids)} if thumb_ids else {}
         )
 
         serializer = PlaceListItemSerializer(

@@ -10,6 +10,7 @@
   карта с фильтром "calm OR romantic" должна показывать всё, что подходит
   хотя бы под один из выбранных вайбов.
 """
+
 from __future__ import annotations
 
 from django.db.models import BooleanField, ExpressionWrapper, OuterRef, Q, QuerySet, Subquery

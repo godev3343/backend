@@ -7,6 +7,7 @@
 - первый чек-ин юзера в этом месте → +10 (FIRST_CHECKIN)
 - повторный чек-ин в то же место → без FIRST_CHECKIN бонуса
 """
+
 from __future__ import annotations
 
 import pytest
@@ -22,7 +23,6 @@ from apps.checkins.services.exceptions import (
 from apps.gamification.models import PointsReason, PointsTransaction
 from apps.places.tests.factories import PlaceFactory
 from apps.users.tests.factories import UserFactory
-
 
 # Точка-якорь для всех тестов — Астана, Назарбаев-центр.
 PLACE_LAT, PLACE_LNG = 51.0908, 71.4187
@@ -121,12 +121,8 @@ class TestPointsAwarding:
         """Первый раз в месте → +5 (CHECKIN) и +10 (FIRST_CHECKIN)."""
         user = UserFactory()
         place = _make_place()
-        CheckInService.create(
-            user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
-        )
-        txs = list(
-            PointsTransaction.objects.filter(user=user).order_by("created_at")
-        )
+        CheckInService.create(user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG)
+        txs = list(PointsTransaction.objects.filter(user=user).order_by("created_at"))
         reasons = {tx.reason for tx in txs}
         assert reasons == {PointsReason.CHECKIN, PointsReason.FIRST_CHECKIN}
         user.refresh_from_db()
@@ -136,18 +132,12 @@ class TestPointsAwarding:
         """Повторный чек-ин в то же место → только +5, без FIRST_CHECKIN."""
         user = UserFactory()
         place = _make_place()
-        CheckInService.create(
-            user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
-        )
-        CheckInService.create(
-            user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
-        )
+        CheckInService.create(user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG)
+        CheckInService.create(user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG)
         first_bonuses = PointsTransaction.objects.filter(
             user=user, reason=PointsReason.FIRST_CHECKIN
         )
-        checkins = PointsTransaction.objects.filter(
-            user=user, reason=PointsReason.CHECKIN
-        )
+        checkins = PointsTransaction.objects.filter(user=user, reason=PointsReason.CHECKIN)
         assert first_bonuses.count() == 1
         assert checkins.count() == 2
         user.refresh_from_db()
@@ -184,18 +174,14 @@ class TestPointsAwarding:
         a = UserFactory()
         b = UserFactory()
         place = _make_place()
-        CheckInService.create(
-            user=a, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
+        CheckInService.create(user=a, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG)
+        CheckInService.create(user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG)
+        assert (
+            PointsTransaction.objects.filter(user=a, reason=PointsReason.FIRST_CHECKIN).count() == 1
         )
-        CheckInService.create(
-            user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
+        assert (
+            PointsTransaction.objects.filter(user=b, reason=PointsReason.FIRST_CHECKIN).count() == 1
         )
-        assert PointsTransaction.objects.filter(
-            user=a, reason=PointsReason.FIRST_CHECKIN
-        ).count() == 1
-        assert PointsTransaction.objects.filter(
-            user=b, reason=PointsReason.FIRST_CHECKIN
-        ).count() == 1
 
 
 @pytest.mark.django_db

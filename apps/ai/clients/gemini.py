@@ -1,4 +1,5 @@
 """Gemini-реализация LLMClient через google-genai SDK."""
+
 from __future__ import annotations
 
 import asyncio
@@ -81,9 +82,5 @@ class GeminiClient(LLMClient):
         for msg in messages:
             # Gemini использует role "user" и "model" (не "assistant")
             role = "model" if msg.role == "assistant" else "user"
-            result.append(
-                types.Content(
-                    role=role, parts=[types.Part.from_text(text=msg.content)]
-                )
-            )
+            result.append(types.Content(role=role, parts=[types.Part.from_text(text=msg.content)]))
         return result

@@ -14,6 +14,7 @@ Image processing: decode → EXIF strip → resize → WebP encode.
   как нативный формат после этого.
 - Качество WebP: 90 для original, 85 для feed, 80 для thumb.
 """
+
 from __future__ import annotations
 
 import io
@@ -147,9 +148,7 @@ def process(data: bytes, *, min_short_side: int) -> ProcessedImage:
 
     short_side = min(src.size)
     if short_side < min_short_side:
-        raise ImageTooSmallError(
-            f"Short side {short_side}px < min {min_short_side}px"
-        )
+        raise ImageTooSmallError(f"Short side {short_side}px < min {min_short_side}px")
 
     source_w, source_h = src.size
 

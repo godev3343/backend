@@ -1,5 +1,6 @@
 # apps/checkins/tests/test_like_api.py
 """Тесты POST/DELETE /api/checkins/{id}/like."""
+
 from __future__ import annotations
 
 import pytest

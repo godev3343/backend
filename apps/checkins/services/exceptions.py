@@ -8,6 +8,7 @@
 - default_code, default_message — class-level атрибуты
 - status_code — class-level атрибут
 """
+
 from __future__ import annotations
 
 from apps.core.exceptions import DomainError

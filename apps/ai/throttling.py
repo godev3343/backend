@@ -1,4 +1,5 @@
 """Rate limit для /api/ai/recommend."""
+
 from __future__ import annotations
 
 from rest_framework.throttling import UserRateThrottle

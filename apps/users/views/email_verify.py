@@ -1,4 +1,5 @@
 """Email verification request + confirm."""
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -22,9 +23,7 @@ class EmailVerifyRequestView(APIView):
     def post(self, request: Request) -> Response:
         serializer = EmailVerifyRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        AuthService.request_email_verification(
-            email=serializer.validated_data["email"]
-        )
+        AuthService.request_email_verification(email=serializer.validated_data["email"])
         # Идемпотентный 202 — не палим существование email
         return Response(
             {"detail": "If the email exists, a verification code has been sent."},

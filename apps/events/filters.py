@@ -1,6 +1,7 @@
 """
 Парсинг и валидация query-параметров для GET /api/events.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

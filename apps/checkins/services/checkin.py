@@ -18,6 +18,7 @@ CheckInService — создание чек-инов.
   транзакции. Откат любой части откатывает всё. PointsService умеет
   идемпотентность через savepoint внутри.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -55,7 +56,7 @@ class CheckInService:
     def create(
         cls,
         *,
-        user: "UserType",
+        user: UserType,
         place_id: int,
         latitude: float,
         longitude: float,
@@ -86,9 +87,7 @@ class CheckInService:
 
         # Бонус ДО создания чек-ина: иначе текущий чек-ин засчитается
         # как "уже был" и бонус никогда не сработает.
-        is_first_at_place = cls._is_users_first_checkin_at_place(
-            user_id=user.pk, place_id=place.pk
-        )
+        is_first_at_place = cls._is_users_first_checkin_at_place(user_id=user.pk, place_id=place.pk)
 
         checkin = CheckIn.objects.create(
             user=user,
@@ -165,7 +164,7 @@ class CheckInService:
     @staticmethod
     def _resolve_photo(
         *,
-        user: "UserType",
+        user: UserType,
         place: Place,
         photo_key: str | None,
     ) -> PlacePhoto | None:
@@ -218,6 +217,4 @@ class CheckInService:
         Вызывать ДО CheckIn.objects.create() — иначе только что созданный
         чек-ин сам себе будет помехой.
         """
-        return not CheckIn.objects.filter(
-            user_id=user_id, place_id=place_id
-        ).exists()
+        return not CheckIn.objects.filter(user_id=user_id, place_id=place_id).exists()

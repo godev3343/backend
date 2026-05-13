@@ -1,5 +1,6 @@
 # apps/users/tests/test_auth_google.py
 """Тесты Google OAuth с моком id_token.verify_oauth2_token."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -41,9 +42,7 @@ def _google_payload(**overrides) -> dict:  # type: ignore[no-untyped-def]
 
 @pytest.mark.django_db
 class TestGoogleAuth:
-    def test_new_user_created(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_new_user_created(self, client: APIClient, google_configured) -> None:
         with patch(
             "apps.users.services.google.google_id_token.verify_oauth2_token",
             return_value=_google_payload(),
@@ -62,9 +61,7 @@ class TestGoogleAuth:
         assert user.google_sub == "google-sub-12345"
         assert user.is_email_verified is True
 
-    def test_existing_user_linked_by_email(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_existing_user_linked_by_email(self, client: APIClient, google_configured) -> None:
         existing = User.objects.create_user(
             email="google@test.local", first_name="X", password="pass-12345"
         )
@@ -86,9 +83,7 @@ class TestGoogleAuth:
         assert existing.google_sub == "google-sub-12345"
         assert existing.is_email_verified is True
 
-    def test_returning_user_by_sub(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_returning_user_by_sub(self, client: APIClient, google_configured) -> None:
         existing = User.objects.create_user(
             email="other-email@test.local",
             first_name="X",
@@ -111,9 +106,7 @@ class TestGoogleAuth:
         existing.refresh_from_db()
         assert existing.email == "other-email@test.local"
 
-    def test_invalid_aud(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_invalid_aud(self, client: APIClient, google_configured) -> None:
         with patch(
             "apps.users.services.google.google_id_token.verify_oauth2_token",
             return_value=_google_payload(aud="some-other-client"),
@@ -126,9 +119,7 @@ class TestGoogleAuth:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.json()["code"] == "invalid_audience"
 
-    def test_invalid_token(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_invalid_token(self, client: APIClient, google_configured) -> None:
         with patch(
             "apps.users.services.google.google_id_token.verify_oauth2_token",
             side_effect=ValueError("bad token"),
@@ -141,9 +132,7 @@ class TestGoogleAuth:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.json()["code"] == "invalid_id_token"
 
-    def test_email_not_verified_at_google(
-        self, client: APIClient, google_configured  # noqa: ARG002
-    ) -> None:
+    def test_email_not_verified_at_google(self, client: APIClient, google_configured) -> None:
         with patch(
             "apps.users.services.google.google_id_token.verify_oauth2_token",
             return_value=_google_payload(email_verified=False),

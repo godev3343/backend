@@ -1,4 +1,5 @@
 """Тесты UploadService — бизнес-логика presign/confirm."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -142,28 +143,31 @@ class TestConfirm:
         user = UserFactory()
         asset = MediaAssetFactory(owner=user)
 
-        with patch(
-            "apps.media.services.upload.head_object",
-            side_effect=R2ObjectNotFound("missing"),
+        with (
+            patch(
+                "apps.media.services.upload.head_object", side_effect=R2ObjectNotFound("missing")
+            ),
+            pytest.raises(SourceNotUploaded),
         ):
-            with pytest.raises(SourceNotUploaded):
-                UploadService.confirm(user=user, asset_id=asset.pk)
+            UploadService.confirm(user=user, asset_id=asset.pk)
 
     def test_confirm_wrong_content_type_in_r2(self) -> None:
         """Клиент залил в R2 не-картинку (например, html)."""
         user = UserFactory()
         asset = MediaAssetFactory(owner=user)
 
-        bad_head = {
-            "content_length": 1000,
-            "content_type": "text/html",
-            "etag": "x",
-        }
-        with patch(
-            "apps.media.services.upload.head_object", return_value=bad_head
+        with (
+            patch(
+                "apps.media.services.upload.head_object",
+                return_value={
+                    "content_length": 1000,
+                    "content_type": "text/html",
+                    "etag": "x",
+                },
+            ),
+            pytest.raises(SourceContentTypeMismatch),
         ):
-            with pytest.raises(SourceContentTypeMismatch):
-                UploadService.confirm(user=user, asset_id=asset.pk)
+            UploadService.confirm(user=user, asset_id=asset.pk)
 
     def test_confirm_oversize_in_r2(self) -> None:
         """Клиент обманул при presign — на самом деле залил больше."""
@@ -171,16 +175,18 @@ class TestConfirm:
         asset = MediaAssetFactory(owner=user, purpose=MediaPurpose.AVATAR)
 
         oversize = settings.UPLOAD_MAX_SIZE["avatar"] + 1
-        head = {
-            "content_length": oversize,
-            "content_type": "image/jpeg",
-            "etag": "x",
-        }
-        with patch(
-            "apps.media.services.upload.head_object", return_value=head
+        with (
+            patch(
+                "apps.media.services.upload.head_object",
+                return_value={
+                    "content_length": oversize,
+                    "content_type": "image/jpeg",
+                    "etag": "x",
+                },
+            ),
+            pytest.raises(FileTooLarge),
         ):
-            with pytest.raises(FileTooLarge):
-                UploadService.confirm(user=user, asset_id=asset.pk)
+            UploadService.confirm(user=user, asset_id=asset.pk)
 
     def test_confirm_idempotent_on_processed(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
         """Повторный confirm на PROCESSED — no-op, без новой задачи."""

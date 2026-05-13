@@ -1,6 +1,7 @@
 """
 Валидация preferred_vibes и ai_context — общая для PATCH /me и PUT /preferences.
 """
+
 from __future__ import annotations
 
 from rest_framework import serializers
@@ -21,8 +22,7 @@ def validate_preferred_vibes(value: list[str]) -> list[str]:
     invalid = [v for v in value if v not in valid_tags]
     if invalid:
         raise serializers.ValidationError(
-            f"Invalid vibe tag(s): {sorted(invalid)}. "
-            f"Allowed: {sorted(valid_tags)}."
+            f"Invalid vibe tag(s): {sorted(invalid)}. Allowed: {sorted(valid_tags)}."
         )
 
     if len(set(value)) != len(value):

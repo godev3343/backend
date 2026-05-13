@@ -7,6 +7,7 @@ GET /api/users/me/points — история начислений текущег�
 - сортировка по created_at DESC (новые сверху)
 - cursor-пагинация по 50 на страницу
 """
+
 from __future__ import annotations
 
 import pytest
@@ -15,7 +16,6 @@ from rest_framework.test import APIClient
 from apps.gamification.models import PointsReason
 from apps.gamification.services import PointsService
 from apps.users.tests.factories import UserFactory
-
 
 URL = "/api/users/me/points"
 
@@ -30,12 +30,16 @@ class TestMyPointsHistoryView:
     def test_returns_own_transactions(self) -> None:
         user = UserFactory()
         PointsService.award(
-            user=user, reason=PointsReason.CHECKIN,
-            ref_type="checkin", ref_id=1,
+            user=user,
+            reason=PointsReason.CHECKIN,
+            ref_type="checkin",
+            ref_id=1,
         )
         PointsService.award(
-            user=user, reason=PointsReason.FIRST_CHECKIN,
-            ref_type="checkin", ref_id=1,
+            user=user,
+            reason=PointsReason.FIRST_CHECKIN,
+            ref_type="checkin",
+            ref_id=1,
         )
         client = APIClient()
         client.force_authenticate(user=user)
@@ -50,8 +54,10 @@ class TestMyPointsHistoryView:
         me = UserFactory()
         other = UserFactory()
         PointsService.award(
-            user=other, reason=PointsReason.CHECKIN,
-            ref_type="checkin", ref_id=999,
+            user=other,
+            reason=PointsReason.CHECKIN,
+            ref_type="checkin",
+            ref_id=999,
         )
         client = APIClient()
         client.force_authenticate(user=me)
@@ -63,12 +69,16 @@ class TestMyPointsHistoryView:
         user = UserFactory()
         # Создаём транзакции с разными ref_id — порядок создания = порядок created_at
         first = PointsService.award(
-            user=user, reason=PointsReason.CHECKIN,
-            ref_type="checkin", ref_id=1,
+            user=user,
+            reason=PointsReason.CHECKIN,
+            ref_type="checkin",
+            ref_id=1,
         )
         second = PointsService.award(
-            user=user, reason=PointsReason.CHECKIN,
-            ref_type="checkin", ref_id=2,
+            user=user,
+            reason=PointsReason.CHECKIN,
+            ref_type="checkin",
+            ref_id=2,
         )
         client = APIClient()
         client.force_authenticate(user=user)
@@ -81,8 +91,10 @@ class TestMyPointsHistoryView:
         user = UserFactory()
         for i in range(55):
             PointsService.award(
-                user=user, reason=PointsReason.CHECKIN,
-                ref_type="checkin", ref_id=i,
+                user=user,
+                reason=PointsReason.CHECKIN,
+                ref_type="checkin",
+                ref_id=i,
             )
         client = APIClient()
         client.force_authenticate(user=user)
@@ -100,16 +112,16 @@ class TestMyPointsHistoryView:
     def test_serialized_fields(self) -> None:
         user = UserFactory()
         tx = PointsService.award(
-            user=user, reason=PointsReason.FRIEND_ADDED,
-            ref_type="friendship", ref_id=42,
+            user=user,
+            reason=PointsReason.FRIEND_ADDED,
+            ref_type="friendship",
+            ref_id=42,
         )
         client = APIClient()
         client.force_authenticate(user=user)
         response = client.get(URL)
         item = response.data["results"][0]
-        assert set(item.keys()) == {
-            "id", "delta", "reason", "ref_type", "ref_id", "created_at"
-        }
+        assert set(item.keys()) == {"id", "delta", "reason", "ref_type", "ref_id", "created_at"}
         assert item["id"] == tx.pk
         assert item["delta"] == 5
         assert item["reason"] == "friend_added"

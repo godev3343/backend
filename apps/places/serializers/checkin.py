@@ -5,6 +5,7 @@
 места не должен зависеть от модели CheckIn. EPIC 6 будет иметь свой
 CheckInSerializer для /api/checkins/.
 """
+
 from __future__ import annotations
 
 from typing import Any

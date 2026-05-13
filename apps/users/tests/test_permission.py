@@ -6,6 +6,7 @@
 
 Это даже лучше: не зависим от роутинга/middleware/throttling.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace

@@ -1,4 +1,5 @@
 """Celery app entrypoint."""
+
 from __future__ import annotations
 
 import os
@@ -16,7 +17,9 @@ app.autodiscover_tasks()
 @setup_logging.connect
 def config_loggers(*args: object, **kwargs: object) -> None:
     from logging.config import dictConfig
+
     from django.conf import settings
+
     dictConfig(settings.LOGGING)
 
 

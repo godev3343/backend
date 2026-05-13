@@ -1,4 +1,5 @@
 """Smoke-test для команды seed_places — идемпотентность и парсинг city."""
+
 from __future__ import annotations
 
 import json

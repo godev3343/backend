@@ -41,9 +41,7 @@ class TestEventList:
         ids = [item["id"] for item in resp.data["results"]]
         assert future.id in ids
 
-    def test_past_event_without_ends_at_excluded_by_default(
-        self, api: APIClient
-    ) -> None:
+    def test_past_event_without_ends_at_excluded_by_default(self, api: APIClient) -> None:
         EventFactory(starts_at=now() - timedelta(days=2))
         resp = api.get(_list_url())
         assert resp.data["count"] == 0
@@ -98,9 +96,7 @@ class TestEventList:
         resp = api.get(_list_url(), {"bbox": "71.0,50.9,71.6,51.3"})  # Астана
         assert resp.data["count"] == 0
 
-    def test_bbox_with_place_event_uses_denormalized_location(
-        self, api: APIClient
-    ) -> None:
+    def test_bbox_with_place_event_uses_denormalized_location(self, api: APIClient) -> None:
         """Событие привязано к Place — bbox должен находить его через денормализованный Event.location."""
         place = PlaceFactory(location=Point(71.4187, 51.0908, srid=4326))
         event = EventFactory(place=place, location=None)

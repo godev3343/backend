@@ -19,11 +19,23 @@ select = [
 ignore = [
     "E501",              # line length — у форматтера свои правила
     "B008",              # mutable default args — DRF использует Default(...)
+    # Ambiguous unicode — фолз-позитивы для русскоязычного проекта.
+    # Все наши комментарии/docstrings/строки на русском, кириллица там — норма.
+    "RUF001",            # ambiguous string
+    "RUF002",            # ambiguous docstring
+    "RUF003",            # ambiguous comment
+    # N818 (Error-suffix для exceptions) — у нас доменная конвенция:
+    # InvalidLocation, FriendshipExists, PlaceNotFound. Они наследуют DomainError
+    # и читаются как глаголы/состояния. Не переименовываем 30+ классов.
+    "N818",
+    # RUF012 (Mutable ClassVar) — DRF API permission_classes/throttle_classes
+    # это идиоматический list, не баг. Аналогично Django Meta.indexes/constraints.
+    "RUF012",
 ]
 
 [lint.per-file-ignores]
 "**/tests/**" = ["S101", "PLR2004"]
-"**/settings/*.py" = ["F405", "F403"]
+"**/settings/*.py" = ["F405", "F403", "E402", "RUF100"]
 
 [lint.isort]
 known-first-party = ["apps", "config"]

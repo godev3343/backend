@@ -1,4 +1,5 @@
 """HTTP-тесты media-эндпоинтов."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -9,7 +10,6 @@ from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.media.models import MediaAsset, MediaPurpose, MediaStatus
 from apps.media.tests.factories import MediaAssetFactory
 from apps.users.tests.factories import UserFactory
 

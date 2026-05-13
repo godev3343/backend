@@ -1,4 +1,5 @@
 """Health и readiness probes для Railway/k8s."""
+
 from __future__ import annotations
 
 from django.core.cache import cache
@@ -35,14 +36,14 @@ class ReadinessView(APIView):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
             checks["database"] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             checks["database"] = f"error: {exc}"
 
         try:
             cache.set("readiness_probe", "1", timeout=5)
             cache.get("readiness_probe")
             checks["redis"] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             checks["redis"] = f"error: {exc}"
 
         all_ok = all(v == "ok" for v in checks.values())

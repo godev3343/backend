@@ -7,6 +7,7 @@ GET /api/feed — лента чек-инов друзей.
 Дружба — accepted-запись в любом направлении. Используем подзапрос для
 получения friend_ids, чтобы не загружать список друзей в Python.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -52,14 +53,12 @@ class FeedView(ListAPIView):
             .order_by("-created_at", "-id")
         )
 
-    def list(self, request: "Request", *args, **kwargs):  # type: ignore[no-untyped-def]
+    def list(self, request: Request, *args, **kwargs):  # type: ignore[no-untyped-def]
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
 
         if page is not None:
-            liked_ids = self._collect_liked_ids(
-                user_id=request.user.pk, checkins=page
-            )
+            liked_ids = self._collect_liked_ids(user_id=request.user.pk, checkins=page)
             serializer = self.get_serializer(
                 page,
                 many=True,
@@ -69,9 +68,7 @@ class FeedView(ListAPIView):
 
         # На случай если пагинатор отключен или вернул None.
         items = list(queryset)
-        liked_ids = self._collect_liked_ids(
-            user_id=request.user.pk, checkins=items
-        )
+        liked_ids = self._collect_liked_ids(user_id=request.user.pk, checkins=items)
         serializer = self.get_serializer(
             items,
             many=True,
@@ -87,7 +84,7 @@ class FeedView(ListAPIView):
             return set()
         checkin_ids = [c.pk for c in checkins]
         return set(
-            Like.objects.filter(
-                user_id=user_id, checkin_id__in=checkin_ids
-            ).values_list("checkin_id", flat=True)
+            Like.objects.filter(user_id=user_id, checkin_id__in=checkin_ids).values_list(
+                "checkin_id", flat=True
+            )
         )

@@ -4,6 +4,7 @@
 Храним только summary, не полные ответы и не контекст-блоки —
 иначе таблица разрастётся, а PII (query пользователя) и так уже там.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -38,9 +39,7 @@ class AiRequestLog(models.Model):
     input_tokens = models.PositiveIntegerField(default=0)
     output_tokens = models.PositiveIntegerField(default=0)
     cached_input_tokens = models.PositiveIntegerField(default=0)
-    cost_usd = models.DecimalField(
-        max_digits=10, decimal_places=6, default=Decimal("0")
-    )
+    cost_usd = models.DecimalField(max_digits=10, decimal_places=6, default=Decimal("0"))
 
     # Технические метаданные
     model = models.CharField(max_length=64)
@@ -57,9 +56,7 @@ class AiRequestLog(models.Model):
     class Meta:
         db_table = "ai_request_log"
         indexes = [
-            models.Index(
-                fields=("user", "-created_at"), name="ailog_user_created_idx"
-            ),
+            models.Index(fields=("user", "-created_at"), name="ailog_user_created_idx"),
         ]
 
     def __str__(self) -> str:

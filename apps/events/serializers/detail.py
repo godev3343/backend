@@ -1,4 +1,5 @@
 """Сериализатор карточки события — GET /api/events/{id}."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

@@ -1,4 +1,5 @@
 """Тесты PointsService.award."""
+
 from __future__ import annotations
 
 import pytest
@@ -65,12 +66,8 @@ class TestAward:
 
     def test_different_refs_both_award(self) -> None:
         user = UserFactory()
-        PointsService.award(
-            user=user, reason=PointsReason.CHECKIN, ref_type="checkin", ref_id=1
-        )
-        PointsService.award(
-            user=user, reason=PointsReason.CHECKIN, ref_type="checkin", ref_id=2
-        )
+        PointsService.award(user=user, reason=PointsReason.CHECKIN, ref_type="checkin", ref_id=1)
+        PointsService.award(user=user, reason=PointsReason.CHECKIN, ref_type="checkin", ref_id=2)
         user.refresh_from_db()
         assert user.points == 2 * POINTS_BY_REASON[PointsReason.CHECKIN]
 
@@ -126,13 +123,17 @@ class TestFriendAddedReason:
     def test_friend_added_idempotent_per_friendship(self) -> None:
         user = UserFactory()
         PointsService.award(
-            user=user, reason=PointsReason.FRIEND_ADDED,
-            ref_type="friendship", ref_id=1,
+            user=user,
+            reason=PointsReason.FRIEND_ADDED,
+            ref_type="friendship",
+            ref_id=1,
         )
         # Дубликат на ту же friendship — не начисляется.
         second = PointsService.award(
-            user=user, reason=PointsReason.FRIEND_ADDED,
-            ref_type="friendship", ref_id=1,
+            user=user,
+            reason=PointsReason.FRIEND_ADDED,
+            ref_type="friendship",
+            ref_id=1,
         )
         assert second is None
         user.refresh_from_db()

@@ -1,4 +1,5 @@
 """Сериализатор для GET /api/users/me/points."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

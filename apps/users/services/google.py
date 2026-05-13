@@ -1,4 +1,5 @@
 """GoogleAuthService — верификация id_token, поиск/создание юзера."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -28,7 +29,7 @@ class GoogleAuthService:
     """
 
     @classmethod
-    def authenticate(cls, *, id_token: str) -> tuple["UserType", TokenPair, bool]:
+    def authenticate(cls, *, id_token: str) -> tuple[UserType, TokenPair, bool]:
         """Возвращает (user, tokens, created)."""
         profile = cls._verify_id_token(id_token)
         user, created = cls._find_or_create_user(profile)
@@ -80,7 +81,7 @@ class GoogleAuthService:
 
     @classmethod
     @transaction.atomic
-    def _find_or_create_user(cls, profile: GoogleProfile) -> tuple["UserType", bool]:
+    def _find_or_create_user(cls, profile: GoogleProfile) -> tuple[UserType, bool]:
         from apps.users.models import User
 
         # 1. По google_sub

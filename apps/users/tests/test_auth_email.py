@@ -1,5 +1,6 @@
 # apps/users/tests/test_auth_email.py
 """Тесты email/password флоу: register, login, refresh, logout, verify, reset."""
+
 from __future__ import annotations
 
 import pytest
@@ -40,9 +41,7 @@ class TestRegister:
         assert "new@test.local" in mail.outbox[0].to
 
     def test_register_duplicate_email(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="dup@test.local", first_name="A", password="pass-12345"
-        )
+        User.objects.create_user(email="dup@test.local", first_name="A", password="pass-12345")
         url = reverse("users:register")
         resp = client.post(
             url,
@@ -81,9 +80,7 @@ class TestRegister:
 @pytest.mark.django_db
 class TestLogin:
     def test_login_success(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="login@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="login@test.local", first_name="X", password="pass-12345")
         url = reverse("users:login")
         resp = client.post(
             url,
@@ -95,9 +92,7 @@ class TestLogin:
         assert "refresh" in resp.json()
 
     def test_login_wrong_password(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="login@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="login@test.local", first_name="X", password="pass-12345")
         url = reverse("users:login")
         resp = client.post(
             url,
@@ -124,9 +119,7 @@ class TestLogin:
 @pytest.mark.django_db
 class TestRefreshAndLogout:
     def _login(self, client: APIClient) -> dict:
-        User.objects.create_user(
-            email="rt@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="rt@test.local", first_name="X", password="pass-12345")
         resp = client.post(
             reverse("users:login"),
             {"email": "rt@test.local", "password": "pass-12345"},
@@ -192,9 +185,7 @@ class TestEmailVerification:
         assert len(mail.outbox) == 0
 
     def test_request_known_email_sends_code(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="v@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="v@test.local", first_name="X", password="pass-12345")
         resp = client.post(
             reverse("users:email_verify_request"),
             {"email": "v@test.local"},
@@ -204,9 +195,7 @@ class TestEmailVerification:
         assert len(mail.outbox) == 1
 
     def test_confirm_with_valid_code(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="v@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="v@test.local", first_name="X", password="pass-12345")
         client.post(
             reverse("users:email_verify_request"),
             {"email": "v@test.local"},
@@ -214,11 +203,7 @@ class TestEmailVerification:
         )
         # Извлекаем код из текста письма
         body = mail.outbox[0].body
-        code = next(
-            line.split(": ")[1].strip()
-            for line in body.splitlines()
-            if "Ваш код" in line
-        )
+        code = next(line.split(": ")[1].strip() for line in body.splitlines() if "Ваш код" in line)
 
         resp = client.post(
             reverse("users:email_verify_confirm"),
@@ -230,9 +215,7 @@ class TestEmailVerification:
         assert user.is_email_verified
 
     def test_confirm_with_wrong_code(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="v@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="v@test.local", first_name="X", password="pass-12345")
         client.post(
             reverse("users:email_verify_request"),
             {"email": "v@test.local"},
@@ -246,20 +229,14 @@ class TestEmailVerification:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_code_consumed_after_use(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="v@test.local", first_name="X", password="pass-12345"
-        )
+        User.objects.create_user(email="v@test.local", first_name="X", password="pass-12345")
         client.post(
             reverse("users:email_verify_request"),
             {"email": "v@test.local"},
             format="json",
         )
         body = mail.outbox[0].body
-        code = next(
-            line.split(": ")[1].strip()
-            for line in body.splitlines()
-            if "Ваш код" in line
-        )
+        code = next(line.split(": ")[1].strip() for line in body.splitlines() if "Ваш код" in line)
 
         client.post(
             reverse("users:email_verify_confirm"),
@@ -287,9 +264,7 @@ class TestPasswordReset:
         assert len(mail.outbox) == 0
 
     def test_request_and_confirm(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="r@test.local", first_name="X", password="old-pass-1234"
-        )
+        User.objects.create_user(email="r@test.local", first_name="X", password="old-pass-1234")
         client.post(
             reverse("users:password_reset_request"),
             {"email": "r@test.local"},
@@ -331,9 +306,7 @@ class TestPasswordReset:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_token_consumed_after_use(self, client: APIClient) -> None:
-        User.objects.create_user(
-            email="r@test.local", first_name="X", password="old-pass-1234"
-        )
+        User.objects.create_user(email="r@test.local", first_name="X", password="old-pass-1234")
         client.post(
             reverse("users:password_reset_request"),
             {"email": "r@test.local"},

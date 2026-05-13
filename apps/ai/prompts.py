@@ -7,6 +7,7 @@
 - давала 2-3 рекомендации, не 10 (UX — не пугать список из 10 кафе)
 - формировала reasoning на русском, 1-2 предложения
 """
+
 from __future__ import annotations
 
 from typing import Any

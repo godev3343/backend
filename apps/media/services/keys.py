@@ -6,6 +6,7 @@
     {purpose}s/{owner_id}/{asset_uuid}/feed.webp
     {purpose}s/{owner_id}/{asset_uuid}/thumb.webp
 """
+
 from __future__ import annotations
 
 import re
@@ -47,9 +48,7 @@ def build_original_key(
     content_type: str,
 ) -> str:
     ext = CONTENT_TYPE_TO_EXT[content_type]
-    prefix = build_asset_prefix(
-        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid
-    )
+    prefix = build_asset_prefix(purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid)
     return f"{prefix}/original.{ext}"
 
 
@@ -60,9 +59,7 @@ def build_variant_key(
     asset_uuid: str,
     variant: Variant,
 ) -> str:
-    prefix = build_asset_prefix(
-        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid
-    )
+    prefix = build_asset_prefix(purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid)
     return f"{prefix}/{variant}.webp"
 
 

@@ -1,11 +1,11 @@
 """Юнит-тесты генерации R2-ключей."""
+
 from __future__ import annotations
 
 import pytest
 
 from apps.media.models import MediaPurpose
 from apps.media.services.keys import (
-    CONTENT_TYPE_TO_EXT,
     build_original_key,
     build_variant_key,
     is_safe_key,

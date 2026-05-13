@@ -7,6 +7,7 @@ POST /api/upload/confirm  — подтвердить загрузку, пост�
 GET /api/media/{id}       — статус asset'а (опционально, для polling-а
                             процессинга на фронте)
 """
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -22,7 +23,7 @@ from apps.media.serializers import (
     MediaAssetSerializer,
     PresignRequestSerializer,
 )
-from apps.media.services.exceptions import MediaAssetNotFound, NotMediaOwner
+from apps.media.services.exceptions import MediaAssetNotFound
 from apps.media.services.upload import UploadService
 from apps.users.permissions import IsEmailVerified
 

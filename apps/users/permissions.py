@@ -1,4 +1,5 @@
 """Кастомные permissions для auth-флоу."""
+
 from __future__ import annotations
 
 from rest_framework.permissions import BasePermission
@@ -19,9 +20,7 @@ class IsEmailVerified(BasePermission):
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = request.user
-        return bool(
-            user and user.is_authenticated and getattr(user, "is_email_verified", False)
-        )
+        return bool(user and user.is_authenticated and getattr(user, "is_email_verified", False))
 
 
 class IsOnboarded(BasePermission):
@@ -32,6 +31,4 @@ class IsOnboarded(BasePermission):
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = request.user
-        return bool(
-            user and user.is_authenticated and getattr(user, "is_onboarded", False)
-        )
+        return bool(user and user.is_authenticated and getattr(user, "is_onboarded", False))

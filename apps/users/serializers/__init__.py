@@ -1,4 +1,5 @@
 """Реэкспорт всех сериализаторов для удобных импортов."""
+
 from apps.users.serializers.email_verify import (
     EmailVerifyConfirmSerializer,
     EmailVerifyRequestSerializer,

@@ -1,5 +1,6 @@
 # apps/checkins/tests/test_feed_api.py
 """Тесты GET /api/feed."""
+
 from __future__ import annotations
 
 import pytest
@@ -15,9 +16,7 @@ from apps.users.tests.factories import UserFactory
 class TestFeedAPI:
     def test_returns_friends_checkins(self, authed_client, user) -> None:  # type: ignore[no-untyped-def]
         friend = UserFactory()
-        FriendshipFactory(
-            from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED)
         friend_checkin = CheckInFactory(user=friend)
 
         url = reverse("checkins:feed")
@@ -43,9 +42,7 @@ class TestFeedAPI:
     def test_pending_friendship_does_not_count(self, authed_client, user) -> None:  # type: ignore[no-untyped-def]
         """Только accepted друзья. Pending — мимо."""
         target = UserFactory()
-        FriendshipFactory(
-            from_user=user, to_user=target, status=FriendshipStatus.PENDING
-        )
+        FriendshipFactory(from_user=user, to_user=target, status=FriendshipStatus.PENDING)
         CheckInFactory(user=target)
         url = reverse("checkins:feed")
         resp = authed_client.get(url)
@@ -55,9 +52,7 @@ class TestFeedAPI:
         """Дружба учитывается в любом направлении (from→to и to→from)."""
         friend = UserFactory()
         # Заявка ОТ friend К user (reverse direction)
-        FriendshipFactory(
-            from_user=friend, to_user=user, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=friend, to_user=user, status=FriendshipStatus.ACCEPTED)
         checkin = CheckInFactory(user=friend)
         url = reverse("checkins:feed")
         resp = authed_client.get(url)
@@ -66,9 +61,7 @@ class TestFeedAPI:
 
     def test_ordering_newest_first(self, authed_client, user) -> None:  # type: ignore[no-untyped-def]
         friend = UserFactory()
-        FriendshipFactory(
-            from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED)
         c1 = CheckInFactory(user=friend)
         c2 = CheckInFactory(user=friend)  # позже по created_at
         url = reverse("checkins:feed")
@@ -82,9 +75,7 @@ class TestFeedAPI:
         from apps.checkins.services import LikeService
 
         friend = UserFactory()
-        FriendshipFactory(
-            from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=user, to_user=friend, status=FriendshipStatus.ACCEPTED)
         checkin = CheckInFactory(user=friend)
         LikeService.like(user=user, checkin_id=checkin.pk)
 

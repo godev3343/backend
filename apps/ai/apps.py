@@ -1,4 +1,5 @@
 """AI app config."""
+
 from __future__ import annotations
 
 from django.apps import AppConfig

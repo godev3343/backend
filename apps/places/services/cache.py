@@ -11,6 +11,7 @@
 не поддерживает — это метод django-redis. Версионирование решает задачу
 без новой зависимости и работает за O(1) на инвалидацию.
 """
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,5 @@
 """GET /api/places/{id} — полная карточка места."""
+
 from __future__ import annotations
 
 from django.db.models import Prefetch
@@ -22,9 +23,7 @@ class PlaceDetailView(GenericAPIView):
     serializer_class = PlaceDetailSerializer
 
     def get(self, request: Request, pk: int) -> Response:
-        photos_qs = PlacePhoto.objects.select_related("asset").order_by(
-            "-created_at", "-id"
-        )
+        photos_qs = PlacePhoto.objects.select_related("asset").order_by("-created_at", "-id")
 
         try:
             place = (

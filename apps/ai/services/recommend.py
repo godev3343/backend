@@ -10,16 +10,15 @@
 6. Лог запроса в AiRequestLog (всегда — и при ошибке тоже).
 7. Возврат списка рекомендаций с обогащением (name из БД, чтобы не верить модели).
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
 import time
 from dataclasses import dataclass
 from typing import Any
 
 from asgiref.sync import sync_to_async
-from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from apps.ai.clients.base import LLMClient, LLMError, LLMMessage
@@ -179,9 +178,7 @@ async def recommend(*, user_id: int, query: str) -> RecommendResult:
     return RecommendResult(items=recommendations, log_id=log.pk)
 
 
-def _filter_and_enrich(
-    *, raw_items: list[Any], valid_ids: frozenset[int]
-) -> list[dict[str, Any]]:
+def _filter_and_enrich(*, raw_items: list[Any], valid_ids: frozenset[int]) -> list[dict[str, Any]]:
     """
     Фильтрует hallucinated id и нормализует поля.
     Дубликаты place_id убираем (первое вхождение остаётся).
@@ -215,6 +212,7 @@ def _filter_and_enrich(
 
 # ---- async DB helpers --------------------------------------------------
 
+
 @sync_to_async
 def _get_user(user_id: int):  # type: ignore[no-untyped-def]
     return User.objects.only("id", "preferred_vibes", "ai_context").get(pk=user_id)
@@ -241,8 +239,7 @@ def _log_success(
         user_id=user_id,
         query=query[:500],
         response_summary=[
-            {"place_id": r.place_id, "reasoning": r.reasoning[:120]}
-            for r in recommendations
+            {"place_id": r.place_id, "reasoning": r.reasoning[:120]} for r in recommendations
         ],
         model=model,
         latency_ms=latency_ms,

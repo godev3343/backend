@@ -1,4 +1,5 @@
 """Cursor-пагинация для истории поинтов."""
+
 from __future__ import annotations
 
 from rest_framework.pagination import CursorPagination

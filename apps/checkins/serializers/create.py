@@ -1,5 +1,6 @@
 # apps/checkins/serializers/create.py
 """Входной сериализатор для POST /api/checkins."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

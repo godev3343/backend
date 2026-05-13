@@ -11,6 +11,7 @@
 - lat, lng
 - place_type (например, address, poi, region)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

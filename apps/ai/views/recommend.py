@@ -1,4 +1,5 @@
 """POST /api/ai/recommend — рекомендации "Куда пойти?"."""
+
 from __future__ import annotations
 
 from asgiref.sync import async_to_sync

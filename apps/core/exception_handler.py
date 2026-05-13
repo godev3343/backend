@@ -1,8 +1,11 @@
+# apps/core/exception_handler.py
 """Единый формат ошибок API."""
+
 from __future__ import annotations
 
+import sentry_sdk
 import structlog
-from rest_framework import exceptions, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
@@ -15,8 +18,11 @@ def api_exception_handler(exc: Exception, context: dict) -> Response | None:
     """
     Конвертирует исключения в ответ вида:
       {"detail": "...", "code": "...", "errors": {...}}
+
+    Доменные ошибки (DomainError) — превращаются в Response с их status_code/code.
+    DRF-ошибки — оборачиваем в единый формат.
+    Не-DRF исключения — 500 + лог + Sentry с user_id.
     """
-    # Доменные ошибки конвертируем в DRF-исключения с кодом
     if isinstance(exc, DomainError):
         payload: dict = {"detail": exc.message, "code": exc.code}
         if exc.errors is not None:
@@ -26,16 +32,21 @@ def api_exception_handler(exc: Exception, context: dict) -> Response | None:
     response = exception_handler(exc, context)
 
     if response is None:
-        # Не-DRF исключение — лог + 500
         request = context.get("request")
         user_id = getattr(getattr(request, "user", None), "id", None)
         logger.exception("unhandled_api_error", user_id=user_id)
+
+        with sentry_sdk.push_scope() as scope:
+            if user_id is not None:
+                scope.set_user({"id": str(user_id)})
+            scope.set_tag("source", "drf_exception_handler")
+            sentry_sdk.capture_exception(exc)
+
         return Response(
             {"detail": "Internal server error", "code": "internal_error"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    # Унифицируем формат
     data = response.data
     code = "error"
     detail: str | dict = data

@@ -1,4 +1,5 @@
 """Тесты кэша списка мест и инвалидации через сигналы."""
+
 from __future__ import annotations
 
 from decimal import Decimal

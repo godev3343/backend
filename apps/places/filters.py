@@ -5,6 +5,7 @@
 специфической валидации (числа+порядок, choices+CSV), а в результате нам
 нужен датакласс, а не Q-объект. django-filter добавил бы шум без выигрыша.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -100,8 +101,7 @@ def _parse_vibes(raw: str | None) -> tuple[str, ...]:
     invalid = [t for t in raw_tags if t not in VALID_VIBE_TAGS]
     if invalid:
         raise InvalidVibe(
-            f"Unknown vibe(s): {', '.join(invalid)}. "
-            f"Valid: {', '.join(sorted(VALID_VIBE_TAGS))}.",
+            f"Unknown vibe(s): {', '.join(invalid)}. Valid: {', '.join(sorted(VALID_VIBE_TAGS))}.",
         )
     # dedupe + стабильный порядок для cache key
     return tuple(sorted(set(raw_tags)))

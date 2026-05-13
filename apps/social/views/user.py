@@ -9,6 +9,7 @@ Profile endpoints разделены: GET/PATCH /me требуют только 
 (чтобы юзер мог редактировать профиль ДО онбординга в EPIC 2-флоу),
 а просмотр чужих профилей и поиск требуют IsOnboarded.
 """
+
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
@@ -22,6 +23,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.social.models import FriendshipStatus
 from apps.social.serializers import (
     UserMeSerializer,
     UserMeUpdateSerializer,
@@ -29,7 +31,6 @@ from apps.social.serializers import (
     UserSearchResultSerializer,
 )
 from apps.social.services import annotate_friendship_status
-from apps.social.models import FriendshipStatus
 from apps.social.throttling import UserSearchThrottle
 from apps.users.permissions import IsOnboarded
 
@@ -65,9 +66,7 @@ def _user_me_with_counts(user_id: int):  # type: ignore[no-untyped-def]
                 )
                 + Count(
                     "friendships_received",
-                    filter=Q(
-                        friendships_received__status=FriendshipStatus.ACCEPTED
-                    ),
+                    filter=Q(friendships_received__status=FriendshipStatus.ACCEPTED),
                     distinct=True,
                 )
             ),
@@ -139,16 +138,12 @@ class UserPublicView(APIView):
                 friends_count=(
                     Count(
                         "friendships_sent",
-                        filter=Q(
-                            friendships_sent__status=FriendshipStatus.ACCEPTED
-                        ),
+                        filter=Q(friendships_sent__status=FriendshipStatus.ACCEPTED),
                         distinct=True,
                     )
                     + Count(
                         "friendships_received",
-                        filter=Q(
-                            friendships_received__status=FriendshipStatus.ACCEPTED
-                        ),
+                        filter=Q(friendships_received__status=FriendshipStatus.ACCEPTED),
                         distinct=True,
                     )
                 ),
@@ -158,9 +153,7 @@ class UserPublicView(APIView):
         user = qs.first()
         if user is None:
             raise NotFound("User not found.")
-        return Response(
-            UserPublicSerializer(user).data, status=status.HTTP_200_OK
-        )
+        return Response(UserPublicSerializer(user).data, status=status.HTTP_200_OK)
 
 
 class UserSearchView(GenericAPIView):
@@ -191,11 +184,7 @@ class UserSearchView(GenericAPIView):
             User.objects.filter(is_active=True)
             .exclude(pk=request.user.pk)
             .select_related("avatar_asset")
-            .filter(
-                Q(display_name__icontains=q)
-                | Q(first_name__icontains=q)
-                | Q(email__iexact=q)
-            )
+            .filter(Q(display_name__icontains=q) | Q(first_name__icontains=q) | Q(email__iexact=q))
         )
         qs = annotate_friendship_status(qs, viewer_id=request.user.pk).order_by(
             "display_name", "id"

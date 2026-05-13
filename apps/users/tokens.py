@@ -7,6 +7,7 @@ Redis-токены для email verification и password reset.
 
 Атомарное чтение+удаление через GETDEL (Redis 6.2+).
 """
+
 from __future__ import annotations
 
 import secrets

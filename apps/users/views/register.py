@@ -1,4 +1,5 @@
 """Register + Login."""
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -26,10 +27,7 @@ class RegisterView(APIView):
         AuthService.register(**serializer.validated_data)
         return Response(
             {
-                "detail": (
-                    "Registration successful. "
-                    "Check your email for verification code."
-                ),
+                "detail": ("Registration successful. Check your email for verification code."),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -44,8 +42,6 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         tokens = AuthService.login(**serializer.validated_data)
         return Response(
-            TokenPairResponseSerializer(
-                {"access": tokens.access, "refresh": tokens.refresh}
-            ).data,
+            TokenPairResponseSerializer({"access": tokens.access, "refresh": tokens.refresh}).data,
             status=status.HTTP_200_OK,
         )

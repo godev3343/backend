@@ -1,4 +1,5 @@
 """factory_boy-фабрики для MediaAsset."""
+
 from __future__ import annotations
 
 import factory
@@ -14,9 +15,7 @@ class MediaAssetFactory(factory.django.DjangoModelFactory):
     owner = factory.SubFactory(UserFactory)
     purpose = MediaPurpose.AVATAR
     status = MediaStatus.PENDING
-    key_original = factory.LazyAttribute(
-        lambda a: f"avatars/{a.owner.pk}/abc123/original.jpg"
-    )
+    key_original = factory.LazyAttribute(lambda a: f"avatars/{a.owner.pk}/abc123/original.jpg")
     key_feed = ""
     key_thumb = ""
     width = 0

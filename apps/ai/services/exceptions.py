@@ -1,4 +1,5 @@
 """AI-домен ошибки. Наследуются от DomainError, не от APIException."""
+
 from __future__ import annotations
 
 from apps.core.exceptions import DomainError

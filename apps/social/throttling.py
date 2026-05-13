@@ -1,4 +1,5 @@
 """Throttle scopes для social-эндпоинтов."""
+
 from __future__ import annotations
 
 from rest_framework.throttling import UserRateThrottle

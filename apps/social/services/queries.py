@@ -17,6 +17,7 @@ N+1 запросов.
 Friendship для каждого из статусов. Дешевле, чем выгребать Friendship и
 матчить в Python.
 """
+
 from __future__ import annotations
 
 from django.db.models import (
@@ -33,9 +34,7 @@ from django.db.models import (
 from apps.social.models import Friendship, FriendshipStatus
 
 
-def annotate_friendship_status(
-    qs: QuerySet, *, viewer_id: int | None
-) -> QuerySet:
+def annotate_friendship_status(qs: QuerySet, *, viewer_id: int | None) -> QuerySet:
     """
     Аннотирует каждого User в qs полем `friendship_status` относительно
     viewer (request.user).
@@ -46,9 +45,7 @@ def annotate_friendship_status(
     if viewer_id is None:
         # Анонимам всё равно нужно поле — пусть будет "none", чтобы
         # сериализатор не падал.
-        return qs.annotate(
-            friendship_status=Value("none", output_field=_str_field())
-        )
+        return qs.annotate(friendship_status=Value("none", output_field=_str_field()))
 
     # Self — отдельная аннотация
     is_self = Case(

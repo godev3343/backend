@@ -1,4 +1,5 @@
 """GET /api/events/{id} — карточка события."""
+
 from __future__ import annotations
 
 from rest_framework.generics import GenericAPIView

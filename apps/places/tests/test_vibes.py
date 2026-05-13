@@ -15,9 +15,7 @@ class TestPlaceVibe:
         place = PlaceFactory()
         PlaceVibeFactory(place=place, tag=PlaceVibeTag.CALM, weight=Decimal("0.5"))
         with pytest.raises(IntegrityError):
-            PlaceVibe.objects.create(
-                place=place, tag=PlaceVibeTag.CALM, weight=Decimal("0.8")
-            )
+            PlaceVibe.objects.create(place=place, tag=PlaceVibeTag.CALM, weight=Decimal("0.8"))
 
     def test_different_tags_same_place_allowed(self) -> None:
         place = PlaceFactory()

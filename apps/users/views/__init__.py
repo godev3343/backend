@@ -1,4 +1,5 @@
 """Реэкспорт view-классов для удобства импорта в urls.py."""
+
 from apps.users.views.email_verify import (
     EmailVerifyConfirmView,
     EmailVerifyRequestView,

@@ -16,6 +16,7 @@ LikeService — лайки на чек-ины.
 помимо строк Like. Обновляем через F-выражение, чтобы две параллельные
 +1/-1 не затёрли друг друга.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -44,7 +45,7 @@ class LikeService:
 
     @classmethod
     @transaction.atomic
-    def like(cls, *, user: "UserType", checkin_id: int) -> str:
+    def like(cls, *, user: UserType, checkin_id: int) -> str:
         """
         Возвращает один из LikeResult.CREATED / ALREADY_LIKED.
 
@@ -65,14 +66,12 @@ class LikeService:
             return LikeResult.ALREADY_LIKED
 
         # Инкремент счётчика — F() избегает гонки на параллельных лайках.
-        CheckIn.objects.filter(pk=checkin_id).update(
-            likes_count=F("likes_count") + 1
-        )
+        CheckIn.objects.filter(pk=checkin_id).update(likes_count=F("likes_count") + 1)
         return LikeResult.CREATED
 
     @classmethod
     @transaction.atomic
-    def unlike(cls, *, user: "UserType", checkin_id: int) -> str:
+    def unlike(cls, *, user: UserType, checkin_id: int) -> str:
         """
         Возвращает LikeResult.REMOVED / WAS_NOT_LIKED.
 
@@ -82,9 +81,7 @@ class LikeService:
         if not CheckIn.objects.filter(pk=checkin_id).exists():
             raise CheckInNotFound()
 
-        deleted_count, _ = Like.objects.filter(
-            user=user, checkin_id=checkin_id
-        ).delete()
+        deleted_count, _ = Like.objects.filter(user=user, checkin_id=checkin_id).delete()
 
         if deleted_count == 0:
             return LikeResult.WAS_NOT_LIKED
@@ -95,7 +92,5 @@ class LikeService:
         # счётчик был >= 1. Но защищаемся явно — Greatest(0, x-1).
         from django.db.models.functions import Greatest
 
-        CheckIn.objects.filter(pk=checkin_id).update(
-            likes_count=Greatest(F("likes_count") - 1, 0)
-        )
+        CheckIn.objects.filter(pk=checkin_id).update(likes_count=Greatest(F("likes_count") - 1, 0))
         return LikeResult.REMOVED

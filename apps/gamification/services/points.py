@@ -9,6 +9,7 @@ PointsService — единая точка начисления поинтов.
   числа в вызывающих сервисах: CheckInService просит "начисли за CHECKIN",
   а сколько именно — решает gamification.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -39,7 +40,7 @@ class PointsService:
     def award(
         cls,
         *,
-        user: "User",
+        user: User,
         reason: str,
         ref_type: str = "",
         ref_id: int | None = None,
@@ -85,9 +86,7 @@ class PointsService:
                 # F-выражение — атомарное увеличение на стороне БД.
                 # Не делаем user.points += delta, чтобы не было гонок
                 # между параллельными чек-инами одного юзера.
-                type(user).objects.filter(pk=user.pk).update(
-                    points=F("points") + delta
-                )
+                type(user).objects.filter(pk=user.pk).update(points=F("points") + delta)
                 # Локальный объект может быть stale — синхронизируем
                 # для удобства вызывающего кода.
                 user.points = (user.points or 0) + delta

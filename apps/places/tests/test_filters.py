@@ -1,4 +1,5 @@
 """Тесты парсинга query-параметров для list-эндпоинта."""
+
 from __future__ import annotations
 
 import pytest

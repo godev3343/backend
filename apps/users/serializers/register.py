@@ -1,4 +1,5 @@
 """Регистрация / логин / логаут."""
+
 from __future__ import annotations
 
 from django.contrib.auth.password_validation import validate_password
@@ -15,7 +16,7 @@ class RegisterRequestSerializer(serializers.Serializer):
         try:
             validate_password(value)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages))
+            raise serializers.ValidationError(list(exc.messages)) from exc
         return value
 
 

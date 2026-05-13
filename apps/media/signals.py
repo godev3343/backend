@@ -9,6 +9,7 @@ User.avatar_asset и удаляем старый asset (вместе с его R
 - Логика "после PROCESSED → обновить владельца" специфична для purpose=avatar,
   и таска не должна знать про User.
 """
+
 from __future__ import annotations
 
 import logging
@@ -77,6 +78,4 @@ def _delete_asset_from_r2(asset: MediaAsset) -> None:
     try:
         delete_objects(keys)
     except R2Error:
-        logger.exception(
-            "failed to cleanup old avatar asset_id=%s", asset.pk
-        )
+        logger.exception("failed to cleanup old avatar asset_id=%s", asset.pk)

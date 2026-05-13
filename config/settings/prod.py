@@ -1,9 +1,11 @@
+# config/settings/prod.py
 """Production."""
+
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from .base import *  # noqa: F401,F403
+from .base import *
 from .base import env
 
 DEBUG = False
@@ -21,7 +23,7 @@ if env.sentry_dsn:
         dsn=env.sentry_dsn,
         environment=env.environment,
         integrations=[DjangoIntegration(), CeleryIntegration()],
-        traces_sample_rate=0.1,
-        profiles_sample_rate=0.1,
+        traces_sample_rate=0,
+        profiles_sample_rate=0,
         send_default_pii=False,
     )

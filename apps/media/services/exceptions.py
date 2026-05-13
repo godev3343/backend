@@ -2,6 +2,7 @@
 Доменные ошибки media-сервисов. Все наследуются от DomainError, чтобы
 api_exception_handler сам конвертировал их в DRF-ответы с {detail, code}.
 """
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -14,7 +15,7 @@ class MediaError(DomainError):
 
     default_code = "media_error"
     default_message = "Media error."
-    status_code = status.HTTP_400_BAD_REQUEST
+    status_code: int = 400
 
 
 class UnsupportedContentType(MediaError):

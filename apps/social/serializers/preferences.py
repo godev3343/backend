@@ -4,6 +4,7 @@
 В отличие от PATCH /me, это идемпотентная полная замена AI-настроек.
 Используется в онбординг-флоу и в экране "AI-предпочтения".
 """
+
 from __future__ import annotations
 
 from rest_framework import serializers
@@ -27,9 +28,7 @@ class UserPreferencesSerializer(serializers.Serializer):
         allow_empty=True,
         max_length=5,
     )
-    ai_context = serializers.CharField(
-        max_length=500, allow_blank=True
-    )
+    ai_context = serializers.CharField(max_length=500, allow_blank=True)
 
     def validate_preferred_vibes(self, value: list[str]) -> list[str]:
         return validate_preferred_vibes(value)

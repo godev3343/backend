@@ -1,5 +1,6 @@
 # config/settings/base.py
 """Base settings — общие для всех окружений."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -189,6 +190,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -296,7 +298,7 @@ REST_FRAMEWORK = {
         "upload_presign": "60/hour",
         "upload_confirm": "120/hour",
         "ai_recommend": "10/hour",
-    "geocode": "60/hour",
+        "geocode": "60/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -316,19 +318,56 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "AI Reality Map / Go API",
-    "DESCRIPTION": "Backend API for the social city map.",
+    "DESCRIPTION": (
+        "Социальная карта города с AI-разметкой вайба, чек-инами, знакомствами и геймификацией."
+    ),
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Порядок и описания тегов. Новые app'ы получат тег по имени и
+    # попадут в конец, в этой секции — то что хочется иметь в красивом порядке.
+    "TAGS": [
+        {
+            "name": "auth",
+            "description": "Регистрация, логин, JWT, email-верификация, password reset, Google OAuth",
+        },
+        {
+            "name": "users",
+            "description": "Профиль текущего пользователя, онбординг, AI-предпочтения",
+        },
+        {"name": "social", "description": "Поиск пользователей, друзья, заявки"},
+        {"name": "media", "description": "Загрузка фото через presigned URLs в R2"},
+        {"name": "places", "description": "Заведения, вайбы, фото"},
+        {"name": "geocoding", "description": "Геокодинг через Mapbox"},
+        {"name": "checkins", "description": "Чек-ины, лента, лайки"},
+        {"name": "events", "description": "Афиша"},
+        {"name": "ai", "description": "AI-рекомендации «Куда пойти?»"},
+        {"name": "gamification", "description": "Поинты и история транзакций"},
+        {"name": "system", "description": "Health/readiness probes, схема API"},
+    ],
+    "PREPROCESSING_HOOKS": ["apps.core.openapi.assign_tag_by_app"],
+    # Авто-описания операций из docstring view-методов (`def post(self, ...)`)
+    "GET_LIB_DOC_EXCLUDES": [],
+    # Разделить request/response schemas в компонентах (иначе один Place
+    # компонент с required-полями только для read-полей)
+    "COMPONENT_SPLIT_REQUEST": True,
+    # Кнопка Authorize в Swagger UI — JWT bearer
+    "SECURITY": [{"bearerAuth": []}],
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+    },
 }
 
 # ---------- Logging ---------------------------------------------------------
-import logging  # noqa: E402
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "json": {"()": "structlog.stdlib.ProcessorFormatter", "processor": __import__("structlog").processors.JSONRenderer()},
+        "json": {
+            "()": "structlog.stdlib.ProcessorFormatter",
+            "processor": __import__("structlog").processors.JSONRenderer(),
+        },
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "json"},
@@ -340,3 +379,7 @@ LOGGING = {
 }
 
 CORS_ALLOWED_ORIGINS = _parse_list(env.cors_allowed_origins)
+CORS_ALLOW_CREDENTIALS = False  # JWT в Authorization header, cookies не используем
+# CSRF middleware включён в MIDDLEWARE для админки. API защищён JWT
+# (нет SessionAuthentication → CsrfViewMiddleware на API endpoints noop).
+CSRF_TRUSTED_ORIGINS = _parse_list(env.cors_allowed_origins)

@@ -10,6 +10,7 @@ MediaAsset — единая модель для всех загружаемых 
 - Другие сущности (User.avatar_asset, PlacePhoto.asset) ссылаются на
   MediaAsset через FK.
 """
+
 from __future__ import annotations
 
 from django.conf import settings

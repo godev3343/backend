@@ -1,4 +1,5 @@
 """AuthService — регистрация, логин, email verification, password reset."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -37,7 +38,7 @@ class AuthService:
 
     @classmethod
     @transaction.atomic
-    def register(cls, *, email: str, first_name: str, password: str) -> "UserType":
+    def register(cls, *, email: str, first_name: str, password: str) -> UserType:
         """
         Создаёт юзера, шлёт код верификации.
         Не возвращает токены — после регистрации нужен явный login.
@@ -79,7 +80,7 @@ class AuthService:
 
     @classmethod
     @transaction.atomic
-    def confirm_email_verification(cls, *, email: str, code: str) -> "UserType":
+    def confirm_email_verification(cls, *, email: str, code: str) -> UserType:
         email = email.lower().strip()
         if not consume_email_verify_code(email=email, code=code):
             raise InvalidCode()
@@ -110,7 +111,7 @@ class AuthService:
 
     @classmethod
     @transaction.atomic
-    def confirm_password_reset(cls, *, token: str, new_password: str) -> "UserType":
+    def confirm_password_reset(cls, *, token: str, new_password: str) -> UserType:
         user_id = consume_password_reset_token(token=token)
         if user_id is None:
             raise InvalidResetToken()

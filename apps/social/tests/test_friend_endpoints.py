@@ -1,4 +1,5 @@
 """Тесты HTTP-эндпоинтов friend requests / friends."""
+
 from __future__ import annotations
 
 import pytest
@@ -89,9 +90,7 @@ class TestSendRequest:
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_send_counter_pending_auto_accepts(
-        self, client: APIClient
-    ) -> None:
+    def test_send_counter_pending_auto_accepts(self, client: APIClient) -> None:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         # b → a уже отправил
         FriendshipFactory(from_user=b, to_user=a)
@@ -112,9 +111,7 @@ class TestAcceptDecline:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         f = FriendshipFactory(from_user=a, to_user=b)
         client.force_authenticate(b)
-        resp = client.post(
-            reverse("social:friend_request_accept", args=[f.pk])
-        )
+        resp = client.post(reverse("social:friend_request_accept", args=[f.pk]))
         assert resp.status_code == status.HTTP_200_OK
         f.refresh_from_db()
         assert f.status == FriendshipStatus.ACCEPTED
@@ -123,9 +120,7 @@ class TestAcceptDecline:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         f = FriendshipFactory(from_user=a, to_user=b)
         client.force_authenticate(a)
-        resp = client.post(
-            reverse("social:friend_request_accept", args=[f.pk])
-        )
+        resp = client.post(reverse("social:friend_request_accept", args=[f.pk]))
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert resp.json()["code"] == "not_recipient"
 
@@ -133,9 +128,7 @@ class TestAcceptDecline:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         f = FriendshipFactory(from_user=a, to_user=b)
         client.force_authenticate(b)
-        resp = client.post(
-            reverse("social:friend_request_decline", args=[f.pk])
-        )
+        resp = client.post(reverse("social:friend_request_decline", args=[f.pk]))
         assert resp.status_code == status.HTTP_204_NO_CONTENT
         assert not Friendship.objects.filter(pk=f.pk).exists()
 
@@ -160,9 +153,7 @@ class TestCancelRequest:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         f = FriendshipFactory(from_user=a, to_user=b)
         client.force_authenticate(a)
-        resp = client.delete(
-            reverse("social:friend_request_cancel", args=[f.pk])
-        )
+        resp = client.delete(reverse("social:friend_request_cancel", args=[f.pk]))
         assert resp.status_code == status.HTTP_204_NO_CONTENT
         assert not Friendship.objects.filter(pk=f.pk).exists()
 
@@ -170,9 +161,7 @@ class TestCancelRequest:
         a, b = _onboarded_user(display_name="a"), _onboarded_user(display_name="b")
         f = FriendshipFactory(from_user=a, to_user=b)
         client.force_authenticate(b)
-        resp = client.delete(
-            reverse("social:friend_request_cancel", args=[f.pk])
-        )
+        resp = client.delete(reverse("social:friend_request_cancel", args=[f.pk]))
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -188,9 +177,7 @@ class TestRequestLists:
         FriendshipFactory(from_user=c, to_user=a)
         # accepted не должен попасть
         d = _onboarded_user(display_name="d")
-        FriendshipFactory(
-            from_user=d, to_user=a, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=d, to_user=a, status=FriendshipStatus.ACCEPTED)
         client.force_authenticate(a)
         resp = client.get(reverse("social:friend_requests_incoming"))
         ids = [r["id"] for r in resp.json()["results"]]
@@ -212,12 +199,8 @@ class TestFriendList:
         a = _onboarded_user(display_name="a")
         b = _onboarded_user(display_name="b")
         c = _onboarded_user(display_name="c")
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
-        FriendshipFactory(
-            from_user=c, to_user=a, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
+        FriendshipFactory(from_user=c, to_user=a, status=FriendshipStatus.ACCEPTED)
         client.force_authenticate(a)
         resp = client.get(reverse("social:friend_list"))
         ids = {r["id"] for r in resp.json()["results"]}
@@ -226,9 +209,7 @@ class TestFriendList:
     def test_remove_friend(self, client: APIClient) -> None:
         a = _onboarded_user(display_name="a")
         b = _onboarded_user(display_name="b")
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
         client.force_authenticate(a)
         resp = client.delete(reverse("social:friend_remove", args=[b.pk]))
         assert resp.status_code == status.HTTP_204_NO_CONTENT
@@ -266,9 +247,7 @@ class TestE2EFlow:
         assert resp.json()["count"] == 1
 
         # 3. b принимает
-        resp = client.post(
-            reverse("social:friend_request_accept", args=[friendship_id])
-        )
+        resp = client.post(reverse("social:friend_request_accept", args=[friendship_id]))
         assert resp.status_code == status.HTTP_200_OK
 
         # 4. Оба видят друг друга в /friends

@@ -1,4 +1,5 @@
 """Сериализаторы Place: компактный list-item и полная карточка detail."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -28,9 +29,7 @@ class PlaceListItemSerializer(serializers.Serializer):
     lat = serializers.SerializerMethodField()
     lng = serializers.SerializerMethodField()
     category_slug = serializers.CharField(source="category.slug")
-    primary_vibe = serializers.CharField(
-        source="primary_vibe_tag", default=None, allow_null=True
-    )
+    primary_vibe = serializers.CharField(source="primary_vibe_tag", default=None, allow_null=True)
     thumb_url = serializers.SerializerMethodField()
 
     def get_lat(self, obj: Place) -> float:
@@ -95,9 +94,7 @@ class PlaceDetailSerializer(serializers.ModelSerializer):
         # Только PROCESSED — фильтр в Python, потому что photos prefetched.
         # Это дешевле чем второй query + filter.
         ready_photos = [
-            p
-            for p in obj.photos.all()
-            if p.asset_id and p.asset.status == MediaStatus.PROCESSED
+            p for p in obj.photos.all() if p.asset_id and p.asset.status == MediaStatus.PROCESSED
         ]
         ready_photos.sort(key=lambda p: (p.created_at, p.id), reverse=True)
         return PlacePhotoSerializer(ready_photos, many=True).data

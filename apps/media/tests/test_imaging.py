@@ -1,4 +1,5 @@
 """Тесты image processing — Pillow pipeline без R2."""
+
 from __future__ import annotations
 
 import io

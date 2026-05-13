@@ -14,6 +14,7 @@ FriendshipService — управление заявками и дружбой.
 - Блокировки (status=BLOCKED) учитываются: ни одна из сторон не может
   отправить заявку другой, пока запись BLOCKED существует.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -53,7 +54,7 @@ class FriendshipService:
 
     @classmethod
     @transaction.atomic
-    def send_request(cls, *, from_user: "UserType", to_user_id: int) -> Friendship:
+    def send_request(cls, *, from_user: UserType, to_user_id: int) -> Friendship:
         """
         Отправить заявку от from_user к to_user_id.
 
@@ -75,8 +76,7 @@ class FriendshipService:
         # Блокируем строки между парой, чтобы избежать гонок при двойном клике.
         existing = list(
             Friendship.objects.select_for_update().filter(
-                Q(from_user=from_user, to_user=to_user)
-                | Q(from_user=to_user, to_user=from_user)
+                Q(from_user=from_user, to_user=to_user) | Q(from_user=to_user, to_user=from_user)
             )
         )
 
@@ -110,9 +110,7 @@ class FriendshipService:
 
     @classmethod
     @transaction.atomic
-    def accept_request(
-        cls, *, user: "UserType", friendship_id: int
-    ) -> Friendship:
+    def accept_request(cls, *, user: UserType, friendship_id: int) -> Friendship:
         """
         Принять входящую заявку. Бросает FriendshipNotFound / NotRecipient.
 
@@ -146,7 +144,7 @@ class FriendshipService:
 
     @classmethod
     @transaction.atomic
-    def decline_request(cls, *, user: "UserType", friendship_id: int) -> None:
+    def decline_request(cls, *, user: UserType, friendship_id: int) -> None:
         """
         Отклонить входящую заявку (hard delete).
         Permission: только to_user может отклонить.
@@ -166,7 +164,7 @@ class FriendshipService:
 
     @classmethod
     @transaction.atomic
-    def cancel_request(cls, *, user: "UserType", friendship_id: int) -> None:
+    def cancel_request(cls, *, user: UserType, friendship_id: int) -> None:
         """
         Отменить исходящую заявку (hard delete).
         Permission: только from_user может отменить.
@@ -190,8 +188,8 @@ class FriendshipService:
     def _award_friend_added(
         friendship: Friendship,
         *,
-        from_user: "UserType",
-        to_user: "UserType",
+        from_user: UserType,
+        to_user: UserType,
     ) -> None:
         """
         Начислить +5 обоим сторонам новой дружбы.

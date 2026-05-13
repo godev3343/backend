@@ -1,7 +1,10 @@
 """
 Тесты для PUT /api/users/me/preferences и для AI-полей в PATCH /api/users/me.
 """
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from django.urls import reverse
@@ -11,9 +14,12 @@ from rest_framework.test import APIClient
 from apps.places.models import PlaceVibeTag
 from apps.users.tests.factories import UserFactory
 
+if TYPE_CHECKING:
+    from apps.users.models import User
+
 
 @pytest.fixture
-def authed_client(db) -> tuple[APIClient, "User"]:  # type: ignore[no-untyped-def]
+def authed_client(db) -> tuple[APIClient, User]:  # type: ignore[no-untyped-def]
     user = UserFactory()
     client = APIClient()
     client.force_authenticate(user=user)
@@ -153,9 +159,7 @@ class TestPatchMeWithAiFields:
     def test_patch_ai_context_only(self, authed_client) -> None:  # type: ignore[no-untyped-def]
         client, user = authed_client
         url = reverse("social:user_me")
-        response = client.patch(
-            url, data={"ai_context": "новый контекст"}, format="json"
-        )
+        response = client.patch(url, data={"ai_context": "новый контекст"}, format="json")
         assert response.status_code == status.HTTP_200_OK
         user.refresh_from_db()
         assert user.ai_context == "новый контекст"

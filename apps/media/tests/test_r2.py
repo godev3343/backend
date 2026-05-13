@@ -1,4 +1,5 @@
 """Smoke-тесты apps.media.r2 — проверка контракта функций."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -9,12 +10,9 @@ from apps.media.r2 import (
     R2Error,
     R2ObjectNotFound,
     build_public_url,
-    delete_object,
     delete_objects,
-    download_to_bytes,
     generate_presigned_put,
     head_object,
-    upload_bytes,
 )
 
 
@@ -33,9 +31,7 @@ def boto_client():
 class TestPresign:
     def test_calls_generate_presigned_url(self, boto_client) -> None:  # type: ignore[no-untyped-def]
         boto_client.generate_presigned_url.return_value = "https://signed.url"
-        url = generate_presigned_put(
-            key="k", content_type="image/jpeg", content_length=100
-        )
+        url = generate_presigned_put(key="k", content_type="image/jpeg", content_length=100)
         assert url == "https://signed.url"
         boto_client.generate_presigned_url.assert_called_once()
         call_kw = boto_client.generate_presigned_url.call_args.kwargs
@@ -62,9 +58,7 @@ class TestHead:
     def test_404_raises_not_found(self, boto_client) -> None:  # type: ignore[no-untyped-def]
         from botocore.exceptions import ClientError
 
-        boto_client.head_object.side_effect = ClientError(
-            {"Error": {"Code": "404"}}, "HeadObject"
-        )
+        boto_client.head_object.side_effect = ClientError({"Error": {"Code": "404"}}, "HeadObject")
         with pytest.raises(R2ObjectNotFound):
             head_object("missing/key")
 

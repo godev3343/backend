@@ -1,4 +1,5 @@
 """Тесты FriendshipService — бизнес-логика на уровне сервиса."""
+
 from __future__ import annotations
 
 import pytest
@@ -50,26 +51,20 @@ class TestSendRequest:
 
     def test_already_friends_fails(self) -> None:
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
         with pytest.raises(AlreadyFriends):
             FriendshipService.send_request(from_user=a, to_user_id=b.pk)
 
     def test_reverse_already_friends_fails(self) -> None:
         """b → a accepted; a пытается отправить b — должен упасть."""
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=b, to_user=a, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=b, to_user=a, status=FriendshipStatus.ACCEPTED)
         with pytest.raises(AlreadyFriends):
             FriendshipService.send_request(from_user=a, to_user_id=b.pk)
 
     def test_blocked_forbidden(self) -> None:
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=b, to_user=a, status=FriendshipStatus.BLOCKED
-        )
+        FriendshipFactory(from_user=b, to_user=a, status=FriendshipStatus.BLOCKED)
         with pytest.raises(UserBlocked):
             FriendshipService.send_request(from_user=a, to_user_id=b.pk)
 
@@ -106,17 +101,13 @@ class TestAcceptRequest:
 
     def test_accept_already_accepted_is_idempotent(self) -> None:
         a, b = UserFactory(), UserFactory()
-        f = FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
+        f = FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
         result = FriendshipService.accept_request(user=b, friendship_id=f.pk)
         assert result.status == FriendshipStatus.ACCEPTED
 
     def test_accept_blocked_fails(self) -> None:
         a, b = UserFactory(), UserFactory()
-        f = FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.BLOCKED
-        )
+        f = FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.BLOCKED)
         with pytest.raises(FriendshipNotFound):
             FriendshipService.accept_request(user=b, friendship_id=f.pk)
 
@@ -164,17 +155,13 @@ class TestCancelRequest:
 class TestRemoveFriend:
     def test_remove_outgoing_direction(self) -> None:
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
         FriendshipService.remove_friend(user=a, other_user_id=b.pk)
         assert not Friendship.objects.exists()
 
     def test_remove_incoming_direction(self) -> None:
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=b, to_user=a, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=b, to_user=a, status=FriendshipStatus.ACCEPTED)
         FriendshipService.remove_friend(user=a, other_user_id=b.pk)
         assert not Friendship.objects.exists()
 
@@ -186,9 +173,7 @@ class TestRemoveFriend:
     def test_remove_pending_does_not_count(self) -> None:
         """Pending — не дружба, remove_friend не должен её удалять."""
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.PENDING
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.PENDING)
         with pytest.raises(FriendshipNotFound):
             FriendshipService.remove_friend(user=a, other_user_id=b.pk)
         assert Friendship.objects.count() == 1
@@ -199,12 +184,8 @@ class TestListFriends:
     def test_lists_both_directions(self) -> None:
         a, b, c = UserFactory(), UserFactory(), UserFactory()
         # a → b accepted, c → a accepted
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
-        FriendshipFactory(
-            from_user=c, to_user=a, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
+        FriendshipFactory(from_user=c, to_user=a, status=FriendshipStatus.ACCEPTED)
         # Pending не должен попасть
         d = UserFactory()
         FriendshipFactory(from_user=a, to_user=d)
@@ -218,18 +199,14 @@ class TestListFriends:
 class TestIsFriends:
     def test_is_friends_either_direction(self) -> None:
         a, b = UserFactory(), UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
+        FriendshipFactory(from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED)
         assert FriendshipService.is_friends(user_a_id=a.pk, user_b_id=b.pk)
         assert FriendshipService.is_friends(user_a_id=b.pk, user_b_id=a.pk)
 
     def test_pending_is_not_friends(self) -> None:
         a, b = UserFactory(), UserFactory()
         FriendshipFactory(from_user=a, to_user=b)
-        assert not FriendshipService.is_friends(
-            user_a_id=a.pk, user_b_id=b.pk
-        )
+        assert not FriendshipService.is_friends(user_a_id=a.pk, user_b_id=b.pk)
 
     def test_self_is_not_friend(self) -> None:
         a = UserFactory()

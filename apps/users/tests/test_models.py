@@ -64,9 +64,7 @@ class TestCustomUserManager:
         assert not u.has_usable_password()
 
     def test_create_user_with_password(self) -> None:
-        u = User.objects.create_user(
-            email="x@test.local", first_name="X", password="strongpass123"
-        )
+        u = User.objects.create_user(email="x@test.local", first_name="X", password="strongpass123")
         assert u.has_usable_password()
         assert u.check_password("strongpass123")
 
@@ -79,9 +77,7 @@ class TestCustomUserManager:
             User.objects.create_user(email="x@test.local", first_name="")
 
     def test_create_superuser(self) -> None:
-        u = User.objects.create_superuser(
-            email="admin@test.local", password="strongpass123"
-        )
+        u = User.objects.create_superuser(email="admin@test.local", password="strongpass123")
         assert u.is_superuser and u.is_staff
 
     def test_create_superuser_requires_password(self) -> None:

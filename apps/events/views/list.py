@@ -4,6 +4,7 @@ GET /api/events — афиша.
 Permissions: AllowAny (см. docs/PROJECT_DECISIONS.md, EPIC 7).
 Создание/редактирование — только через Django Admin.
 """
+
 from __future__ import annotations
 
 from rest_framework.generics import GenericAPIView

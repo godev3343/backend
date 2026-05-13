@@ -5,6 +5,7 @@
 двигаем атомарно через INCR в Redis. Не пересобираем кэш — он сам
 протухнет/пересоберётся при следующем запросе с новой версией в ключе.
 """
+
 from __future__ import annotations
 
 from typing import Any

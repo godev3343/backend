@@ -1,4 +1,5 @@
 """Транзакции поинтов с идемпотентностью."""
+
 from __future__ import annotations
 
 from django.conf import settings

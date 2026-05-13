@@ -7,6 +7,7 @@
 На pre-MVP — только Астана, фильтр по Place.city. На Этапе 1 — city
 будет параметром.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -148,12 +149,7 @@ def _format_place(p: Place) -> str:
     привыкает к структуре, экономим токены на повторных запросах.
     """
     vibes = list(p.vibes.all())
-    if vibes:
-        vibes_str = ", ".join(
-            f"{v.tag}({float(v.weight):.1f})" for v in vibes
-        )
-    else:
-        vibes_str = "—"
+    vibes_str = ", ".join(f"{v.tag}({float(v.weight):.1f})" for v in vibes) if vibes else "—"
 
     lines = [
         f"[place_id={p.id}] {p.name}",
@@ -169,7 +165,4 @@ def _format_event(e: Event) -> str:
     """Компактный блок для события."""
     when = e.starts_at.strftime("%Y-%m-%d %H:%M")
     venue = e.place.name if e.place else "по адресу"
-    return (
-        f"[event_id={e.id}] {e.title} — {when}, {venue}\n"
-        f"  {(e.description or '')[:200]}"
-    )
+    return f"[event_id={e.id}] {e.title} — {when}, {venue}\n  {(e.description or '')[:200]}"

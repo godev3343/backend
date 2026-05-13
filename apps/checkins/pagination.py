@@ -1,4 +1,5 @@
 """Cursor-пагинация для чек-инов и ленты."""
+
 from __future__ import annotations
 
 from rest_framework.pagination import CursorPagination

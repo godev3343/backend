@@ -7,6 +7,7 @@ Throttle-state хранится в Django cache (Redis). Между тестам
 
 Чистим cache перед каждым тестом.
 """
+
 from __future__ import annotations
 
 import pytest

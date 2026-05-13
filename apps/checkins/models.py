@@ -1,4 +1,5 @@
 """Чек-ины — посещения мест."""
+
 from __future__ import annotations
 
 from django.conf import settings

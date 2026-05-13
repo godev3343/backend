@@ -10,6 +10,7 @@
 - bbox-фильтр работает на event.location (денормализован из place.location
   в Event.save и в миграции 0003). Один индекс, никаких JOIN'ов.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -33,10 +34,7 @@ def build_list_queryset(
     qs = (
         Event.objects.select_related("place")
         .filter(starts_at__lt=to)
-        .filter(
-            Q(ends_at__gt=from_)
-            | Q(ends_at__isnull=True, starts_at__gte=from_)
-        )
+        .filter(Q(ends_at__gt=from_) | Q(ends_at__isnull=True, starts_at__gte=from_))
         .order_by("starts_at", "id")
     )
 

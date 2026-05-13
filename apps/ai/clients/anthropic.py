@@ -1,4 +1,5 @@
 """Anthropic-реализация — заглушка, подключим позже."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,6 +24,4 @@ class AnthropicClient(LLMClient):
         temperature: float = 0.7,
         response_schema: dict[str, Any] | None = None,
     ) -> LLMResponse:
-        raise NotImplementedError(
-            "Anthropic client is not wired yet — use AI_PROVIDER=gemini"
-        )
+        raise NotImplementedError("Anthropic client is not wired yet — use AI_PROVIDER=gemini")

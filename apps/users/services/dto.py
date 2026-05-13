@@ -1,4 +1,5 @@
 """DTO для auth-сервисов. Только данные, никакой логики."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ class TokenPair:
     refresh: str
 
     @classmethod
-    def for_user(cls, user: "UserType") -> "TokenPair":
+    def for_user(cls, user: UserType) -> TokenPair:
         refresh = RefreshToken.for_user(user)
         return cls(access=str(refresh.access_token), refresh=str(refresh))
 

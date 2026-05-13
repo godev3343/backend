@@ -1,4 +1,5 @@
 """Throttle-классы для auth-эндпоинтов."""
+
 from __future__ import annotations
 
 from rest_framework.throttling import AnonRateThrottle

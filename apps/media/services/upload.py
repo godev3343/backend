@@ -15,6 +15,7 @@ UploadService — двухэтапная загрузка через presigned P
    - Ставим Celery-таску process_image
    - Возвращаем MediaAsset (всё ещё PENDING, но source_bytes уже проставлен)
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,10 +24,8 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
-from apps.media.models import MediaAsset, MediaPurpose, MediaStatus
-from apps.media.tasks import process_image
+from apps.media.models import MediaAsset, MediaStatus
 from apps.media.r2 import (
     R2ObjectNotFound,
     generate_presigned_put,
@@ -46,6 +45,7 @@ from apps.media.services.keys import (
     is_supported_content_type,
     new_asset_uuid,
 )
+from apps.media.tasks import process_image
 
 if TYPE_CHECKING:
     from apps.users.models import User
@@ -72,9 +72,9 @@ class UploadService:
     def _max_size(purpose: str) -> int:
         try:
             return settings.UPLOAD_MAX_SIZE[purpose]
-        except KeyError:
+        except KeyError as exc:
             # purpose уже провалидирован сериализатором, но на всякий случай
-            raise UnsupportedContentType()
+            raise UnsupportedContentType() from exc
 
     # ---- presign --------------------------------------------------------
 
@@ -83,7 +83,7 @@ class UploadService:
     def presign(
         cls,
         *,
-        user: "User",
+        user: User,
         purpose: str,
         content_type: str,
         content_length: int,
@@ -106,8 +106,7 @@ class UploadService:
         if content_length > max_size:
             raise FileTooLarge(
                 message=(
-                    f"File size {content_length} exceeds limit "
-                    f"{max_size} for purpose '{purpose}'."
+                    f"File size {content_length} exceeds limit {max_size} for purpose '{purpose}'."
                 )
             )
 
@@ -138,7 +137,11 @@ class UploadService:
 
         logger.info(
             "presign issued: asset_id=%s user_id=%s purpose=%s size=%d key=%s",
-            asset.pk, user.pk, purpose, content_length, key,
+            asset.pk,
+            user.pk,
+            purpose,
+            content_length,
+            key,
         )
 
         return PresignResult(
@@ -152,7 +155,7 @@ class UploadService:
 
     @classmethod
     @transaction.atomic
-    def confirm(cls, *, user: "User", asset_id: int) -> MediaAsset:
+    def confirm(cls, *, user: User, asset_id: int) -> MediaAsset:
         """
         Подтвердить что клиент закончил загрузку.
         HEAD-ом проверяем что объект в R2 есть, ставим Celery-задачу.
@@ -169,11 +172,7 @@ class UploadService:
             SourceContentTypeMismatch — content-type в R2 не из whitelist
         """
         try:
-            asset = (
-                MediaAsset.objects
-                .select_for_update()
-                .get(pk=asset_id)
-            )
+            asset = MediaAsset.objects.select_for_update().get(pk=asset_id)
         except MediaAsset.DoesNotExist as exc:
             raise MediaAssetNotFound() from exc
 
@@ -195,18 +194,13 @@ class UploadService:
 
         if not is_supported_content_type(content_type):
             raise SourceContentTypeMismatch(
-                message=(
-                    f"Uploaded content-type '{content_type}' is not supported."
-                )
+                message=(f"Uploaded content-type '{content_type}' is not supported.")
             )
 
         max_size = cls._max_size(asset.purpose)
         if content_length > max_size:
             raise FileTooLarge(
-                message=(
-                    f"Uploaded file size {content_length} exceeds limit "
-                    f"{max_size}."
-                )
+                message=(f"Uploaded file size {content_length} exceeds limit {max_size}.")
             )
 
         asset.source_bytes = content_length
@@ -227,7 +221,9 @@ class UploadService:
 
         logger.info(
             "confirm accepted: asset_id=%s size=%d type=%s",
-            asset.pk, content_length, content_type,
+            asset.pk,
+            content_length,
+            content_type,
         )
 
         return asset

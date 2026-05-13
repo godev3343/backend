@@ -1,4 +1,5 @@
 """Доменные ошибки places-приложения."""
+
 from __future__ import annotations
 
 from apps.core.exceptions import DomainError

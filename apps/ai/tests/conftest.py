@@ -7,6 +7,7 @@ _clear_cache (autouse) — в cache живут:
 Без сброса тесты на endpoint флакают после ~10 прогонов, а тесты
 context builder начинают видеть результаты соседних тестов через cache hit.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -34,19 +35,19 @@ def api_client() -> APIClient:
 
 
 @pytest.fixture
-def user_factory(db) -> Callable[..., "AbstractUser"]:  # type: ignore[no-untyped-def]
+def user_factory(db) -> Callable[..., AbstractUser]:  # type: ignore[no-untyped-def]
     from apps.users.tests.factories import UserFactory
 
     return UserFactory
 
 
 @pytest.fixture
-def user(user_factory: Callable[..., "AbstractUser"]) -> "AbstractUser":
+def user(user_factory: Callable[..., AbstractUser]) -> AbstractUser:
     return user_factory()
 
 
 @pytest.fixture
-def authed_client(api_client: APIClient, user: "AbstractUser") -> APIClient:
+def authed_client(api_client: APIClient, user: AbstractUser) -> APIClient:
     """API client с JWT текущего пользователя."""
     refresh = RefreshToken.for_user(user)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
@@ -54,7 +55,7 @@ def authed_client(api_client: APIClient, user: "AbstractUser") -> APIClient:
 
 
 @pytest.fixture
-def onboarded_user(user_factory: Callable[..., "AbstractUser"]) -> "AbstractUser":
+def onboarded_user(user_factory: Callable[..., AbstractUser]) -> AbstractUser:
     """Юзер с заполненным display_name и consent_at — проходит IsOnboarded."""
     from django.utils.timezone import now
 
@@ -62,9 +63,7 @@ def onboarded_user(user_factory: Callable[..., "AbstractUser"]) -> "AbstractUser
 
 
 @pytest.fixture
-def onboarded_client(
-    api_client: APIClient, onboarded_user: "AbstractUser"
-) -> APIClient:
+def onboarded_client(api_client: APIClient, onboarded_user: AbstractUser) -> APIClient:
     refresh = RefreshToken.for_user(onboarded_user)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
     return api_client

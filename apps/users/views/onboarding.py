@@ -1,4 +1,5 @@
 """Onboarding endpoint."""
+
 from __future__ import annotations
 
 from django.db import transaction

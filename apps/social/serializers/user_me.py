@@ -5,6 +5,7 @@
 Заменяет минимальный UserMeSerializer из apps/users/serializers/onboarding.py,
 который использовался для ответа на онбординг в EPIC 2.
 """
+
 from __future__ import annotations
 
 from rest_framework import serializers
@@ -33,9 +34,7 @@ class UserMeSerializer(serializers.Serializer):
     friends_count = serializers.IntegerField()
     checkins_count = serializers.IntegerField()
     # AI-персонализация (EPIC 8)
-    preferred_vibes = serializers.ListField(
-        child=serializers.CharField(), allow_empty=True
-    )
+    preferred_vibes = serializers.ListField(child=serializers.CharField(), allow_empty=True)
     ai_context = serializers.CharField(allow_blank=True)
 
 
@@ -54,31 +53,21 @@ class UserMeUpdateSerializer(serializers.Serializer):
     """
 
     first_name = serializers.CharField(max_length=100, min_length=1, required=False)
-    last_name = serializers.CharField(
-        max_length=100, allow_blank=True, required=False
-    )
-    display_name = serializers.CharField(
-        max_length=100, min_length=2, required=False
-    )
-    bio = serializers.CharField(
-        max_length=300, allow_blank=True, required=False
-    )
+    last_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    display_name = serializers.CharField(max_length=100, min_length=2, required=False)
+    bio = serializers.CharField(max_length=300, allow_blank=True, required=False)
     preferred_vibes = serializers.ListField(
         child=serializers.CharField(),
         required=False,
         allow_empty=True,
         max_length=5,
     )
-    ai_context = serializers.CharField(
-        max_length=500, allow_blank=True, required=False
-    )
+    ai_context = serializers.CharField(max_length=500, allow_blank=True, required=False)
 
     def validate_preferred_vibes(self, value: list[str]) -> list[str]:
         return validate_preferred_vibes(value)
 
     def validate(self, attrs: dict) -> dict:
         if not attrs:
-            raise serializers.ValidationError(
-                "At least one field must be provided."
-            )
+            raise serializers.ValidationError("At least one field must be provided.")
         return attrs

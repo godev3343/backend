@@ -9,6 +9,7 @@ DomainError — НЕ DRF APIException. Это чистый Python Exception с
 Каждое приложение наследует свой <Domain>Error от DomainError и
 определяет конкретные ошибки от него.
 """
+
 from __future__ import annotations
 
 from typing import Any

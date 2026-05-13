@@ -1,4 +1,5 @@
 """Тесты Celery-таски process_image — пайплайн с мок-R2."""
+
 from __future__ import annotations
 
 import io
@@ -30,6 +31,7 @@ def fake_r2():
 
     def _download(key: str) -> bytes:
         from apps.media.r2 import R2ObjectNotFound
+
         if key not in storage:
             raise R2ObjectNotFound(f"missing {key}")
         return storage[key]
@@ -41,10 +43,12 @@ def fake_r2():
         for k in keys:
             storage.pop(k, None)
 
-    with patch("apps.media.tasks.download_to_bytes", side_effect=_download), \
-         patch("apps.media.tasks.upload_bytes", side_effect=_upload), \
-         patch("apps.media.tasks.delete_objects", side_effect=_delete_many), \
-         patch("apps.media.signals.delete_objects", side_effect=_delete_many):
+    with (
+        patch("apps.media.tasks.download_to_bytes", side_effect=_download),
+        patch("apps.media.tasks.upload_bytes", side_effect=_upload),
+        patch("apps.media.tasks.delete_objects", side_effect=_delete_many),
+        patch("apps.media.signals.delete_objects", side_effect=_delete_many),
+    ):
         yield storage
 
 

@@ -70,13 +70,9 @@ class TestPointsTransactionIdempotency:
         от случайного снятия при будущих миграциях.
         """
         user = UserFactory()
-        PointsTransaction.objects.create(
-            user=user, delta=5, reason=PointsReason.CHECKIN
-        )
+        PointsTransaction.objects.create(user=user, delta=5, reason=PointsReason.CHECKIN)
         with pytest.raises(IntegrityError):
-            PointsTransaction.objects.create(
-                user=user, delta=5, reason=PointsReason.CHECKIN
-            )
+            PointsTransaction.objects.create(user=user, delta=5, reason=PointsReason.CHECKIN)
 
     def test_no_ref_different_users_ok(self) -> None:
         """Constraint per-user: разные юзеры независимо."""
@@ -84,6 +80,9 @@ class TestPointsTransactionIdempotency:
         u2 = UserFactory()
         PointsTransaction.objects.create(user=u1, delta=5, reason=PointsReason.CHECKIN)
         PointsTransaction.objects.create(user=u2, delta=5, reason=PointsReason.CHECKIN)
-        assert PointsTransaction.objects.filter(
-            reason=PointsReason.CHECKIN, ref_id__isnull=True
-        ).count() == 2
+        assert (
+            PointsTransaction.objects.filter(
+                reason=PointsReason.CHECKIN, ref_id__isnull=True
+            ).count()
+            == 2
+        )

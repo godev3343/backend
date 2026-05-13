@@ -1,4 +1,5 @@
 """Тесты геокодинг-эндпоинта и сервиса."""
+
 from __future__ import annotations
 
 import pytest
@@ -44,14 +45,10 @@ def mapbox_response_ok() -> dict:
 
 class TestGeocodeService:
     @respx.mock
-    def test_returns_normalized_results(
-        self, settings, mapbox_response_ok
-    ) -> None:
+    def test_returns_normalized_results(self, settings, mapbox_response_ok) -> None:
         settings.MAPBOX_ACCESS_TOKEN = "fake-token"
 
-        respx.get(MAPBOX_FORWARD_URL).mock(
-            return_value=Response(200, json=mapbox_response_ok)
-        )
+        respx.get(MAPBOX_FORWARD_URL).mock(return_value=Response(200, json=mapbox_response_ok))
 
         results = geocode("Кенесары 10")
         assert len(results) == 2
@@ -74,9 +71,7 @@ class TestGeocodeService:
         assert route.call_count == 1
 
     @respx.mock
-    def test_normalization_hits_same_cache(
-        self, settings, mapbox_response_ok
-    ) -> None:
+    def test_normalization_hits_same_cache(self, settings, mapbox_response_ok) -> None:
         settings.MAPBOX_ACCESS_TOKEN = "fake-token"
 
         route = respx.get(MAPBOX_FORWARD_URL).mock(
@@ -112,9 +107,7 @@ class TestGeocodeService:
     @respx.mock
     def test_upstream_invalid_json_502(self, settings) -> None:
         settings.MAPBOX_ACCESS_TOKEN = "fake-token"
-        respx.get(MAPBOX_FORWARD_URL).mock(
-            return_value=Response(200, text="not json")
-        )
+        respx.get(MAPBOX_FORWARD_URL).mock(return_value=Response(200, text="not json"))
         with pytest.raises(GeocodingUpstreamError):
             geocode("Кенесары 10")
 
@@ -152,13 +145,9 @@ class TestGeocodeView:
         assert resp.status_code == 401
 
     @respx.mock
-    def test_returns_results(
-        self, authed_client, settings, mapbox_response_ok
-    ) -> None:
+    def test_returns_results(self, authed_client, settings, mapbox_response_ok) -> None:
         settings.MAPBOX_ACCESS_TOKEN = "fake-token"
-        respx.get(MAPBOX_FORWARD_URL).mock(
-            return_value=Response(200, json=mapbox_response_ok)
-        )
+        respx.get(MAPBOX_FORWARD_URL).mock(return_value=Response(200, json=mapbox_response_ok))
         url = reverse("geocoding:forward")
         resp = authed_client.get(url, {"q": "Кенесары 10"})
         assert resp.status_code == 200

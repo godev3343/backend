@@ -6,6 +6,7 @@
     {purpose}s/{owner_id}/{asset_uuid}/feed.webp
     {purpose}s/{owner_id}/{asset_uuid}/thumb.webp
 """
+
 from __future__ import annotations
 
 import re
@@ -62,9 +63,7 @@ def build_original_key(
     Pillow распознаёт формат по магическим байтам, расширение не использует.
     """
     ext = CONTENT_TYPE_TO_EXT[content_type]
-    prefix = build_asset_prefix(
-        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid
-    )
+    prefix = build_asset_prefix(purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid)
     return f"{prefix}/original.{ext}"
 
 
@@ -79,9 +78,7 @@ def build_variant_key(
     Ключ для feed/thumb-варианта. Всегда .webp — формат задаём процессором,
     не клиентом.
     """
-    prefix = build_asset_prefix(
-        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid
-    )
+    prefix = build_asset_prefix(purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid)
     return f"{prefix}/{variant}.webp"
 
 

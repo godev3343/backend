@@ -1,4 +1,5 @@
 """Тесты для apps.media.signals — обновление аватара после процессинга."""
+
 from __future__ import annotations
 
 from unittest.mock import patch

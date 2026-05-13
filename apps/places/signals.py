@@ -8,6 +8,7 @@
 Геометрия места (location) — самое частое поле, которое забывают. На save
 мы не отличаем "сменили name" от "перенесли координаты"; проще инвалидировать всегда.
 """
+
 from __future__ import annotations
 
 from typing import Any

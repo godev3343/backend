@@ -8,6 +8,7 @@ Permissions: IsAuthenticated.
 
 Throttle: scope 'geocode' = 60/h на пользователя (см. settings).
 """
+
 from __future__ import annotations
 
 from rest_framework.generics import GenericAPIView

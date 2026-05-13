@@ -11,6 +11,7 @@
 - decline + новая accept (новый friendship.pk) — начисляется снова
 - decline без accept: поинтов нет
 """
+
 from __future__ import annotations
 
 import pytest
@@ -73,9 +74,9 @@ class TestFriendshipAwardsPoints:
         b.refresh_from_db()
         assert a.points == 5
         assert b.points == 5
-        assert PointsTransaction.objects.filter(
-            reason=PointsReason.FRIEND_ADDED
-        ).count() == 2  # по одной на юзера
+        assert (
+            PointsTransaction.objects.filter(reason=PointsReason.FRIEND_ADDED).count() == 2
+        )  # по одной на юзера
 
     def test_decline_does_not_award(self) -> None:
         a = UserFactory()
@@ -87,9 +88,7 @@ class TestFriendshipAwardsPoints:
         b.refresh_from_db()
         assert a.points == 0
         assert b.points == 0
-        assert PointsTransaction.objects.filter(
-            reason=PointsReason.FRIEND_ADDED
-        ).count() == 0
+        assert PointsTransaction.objects.filter(reason=PointsReason.FRIEND_ADDED).count() == 0
 
     def test_decline_then_accept_awards_fresh(self) -> None:
         """
@@ -108,6 +107,4 @@ class TestFriendshipAwardsPoints:
         b.refresh_from_db()
         assert a.points == 5
         assert b.points == 5
-        assert PointsTransaction.objects.filter(
-            reason=PointsReason.FRIEND_ADDED
-        ).count() == 2
+        assert PointsTransaction.objects.filter(reason=PointsReason.FRIEND_ADDED).count() == 2

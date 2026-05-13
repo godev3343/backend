@@ -1,5 +1,6 @@
 # apps/ai/tests/test_recommend_endpoint.py
 """E2E для POST /api/ai/recommend."""
+
 from __future__ import annotations
 
 import json
@@ -25,9 +26,7 @@ class TestAiRecommendEndpoint:
     def test_not_onboarded_returns_403(self, authed_client: APIClient) -> None:
         # authed_client — юзер без display_name и consent_at
         url = reverse("ai:recommend")
-        resp = authed_client.post(
-            url, data={"query": "куда пойти"}, format="json"
-        )
+        resp = authed_client.post(url, data={"query": "куда пойти"}, format="json")
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     def test_short_query_rejected(self, onboarded_client: APIClient) -> None:
@@ -39,27 +38,27 @@ class TestAiRecommendEndpoint:
         place = PlaceFactory(name="Test Place", is_verified=True, city=City.ASTANA)
 
         llm_resp = LLMResponse(
-            text=json.dumps({
-                "items": [{
-                    "place_id": place.id,
-                    "reasoning": "Подходит для тихой работы",
-                    "vibe_match": ["calm"],
-                }]
-            }),
+            text=json.dumps(
+                {
+                    "items": [
+                        {
+                            "place_id": place.id,
+                            "reasoning": "Подходит для тихой работы",
+                            "vibe_match": ["calm"],
+                        }
+                    ]
+                }
+            ),
             input_tokens=500,
             output_tokens=50,
             model="gemini-2.5-flash",
         )
         client_mock = AsyncMock()
         client_mock.complete = AsyncMock(return_value=llm_resp)
-        mocker.patch(
-            "apps.ai.services.recommend.get_llm_client", return_value=client_mock
-        )
+        mocker.patch("apps.ai.services.recommend.get_llm_client", return_value=client_mock)
 
         url = reverse("ai:recommend")
-        resp = onboarded_client.post(
-            url, data={"query": "куда пойти работать"}, format="json"
-        )
+        resp = onboarded_client.post(url, data={"query": "куда пойти работать"}, format="json")
 
         assert resp.status_code == status.HTTP_200_OK
         body = resp.json()

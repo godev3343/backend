@@ -1,4 +1,5 @@
 """Тесты онбординга."""
+
 from __future__ import annotations
 
 import pytest
@@ -54,9 +55,7 @@ class TestOnboarding:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_short_display_name(
-        self, authed_client: tuple[APIClient, object]
-    ) -> None:
+    def test_short_display_name(self, authed_client: tuple[APIClient, object]) -> None:
         client, _ = authed_client
         resp = client.post(
             reverse("users:onboarding"),
@@ -65,9 +64,7 @@ class TestOnboarding:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_idempotent_repeat(
-        self, authed_client: tuple[APIClient, object]
-    ) -> None:
+    def test_idempotent_repeat(self, authed_client: tuple[APIClient, object]) -> None:
         client, _ = authed_client
         client.post(
             reverse("users:onboarding"),

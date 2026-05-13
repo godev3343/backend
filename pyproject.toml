@@ -62,3 +62,27 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict_optional = true
+warn_unused_ignores = false  # был включен, отсюда сотни "Unused type: ignore"
+ignore_missing_imports = true  # boto3, pillow_heif, и т.п. без stubs
+
+# factory_boy stubs нет вообще — factories возвращают Any, не Factory
+[[tool.mypy.overrides]]
+module = "factory.*"
+ignore_missing_imports = true
+
+# Тесты — не type-check, это не production-код
+[[tool.mypy.overrides]]
+module = "*.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"

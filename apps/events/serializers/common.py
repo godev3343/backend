@@ -1,4 +1,5 @@
 """Общие куски сериализаторов events: brief-сериализатор Place и location-helper."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

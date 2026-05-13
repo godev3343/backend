@@ -7,6 +7,7 @@ LLMClient мокаем (нет реальных запросов в Gemini), Б�
 чем тащить @pytest.mark.asyncio и async-фабрики, и достаточно для покрытия
 бизнес-логики.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,9 +36,7 @@ def _clear_cache() -> None:
     cache.clear()
 
 
-def _llm_response(
-    items: list[dict], *, model: str = "gemini-2.5-flash"
-) -> LLMResponse:
+def _llm_response(items: list[dict], *, model: str = "gemini-2.5-flash") -> LLMResponse:
     """Фабрика LLMResponse с валидным JSON-телом."""
     return LLMResponse(
         text=json.dumps({"items": items}),
@@ -54,9 +53,7 @@ def _patch_llm(mocker, *, response=None, side_effect=None) -> AsyncMock:  # type
         client_mock.complete = AsyncMock(side_effect=side_effect)
     else:
         client_mock.complete = AsyncMock(return_value=response)
-    mocker.patch(
-        "apps.ai.services.recommend.get_llm_client", return_value=client_mock
-    )
+    mocker.patch("apps.ai.services.recommend.get_llm_client", return_value=client_mock)
     return client_mock
 
 
@@ -65,8 +62,7 @@ class TestRecommendService:
     def test_happy_path(self, mocker) -> None:  # type: ignore[no-untyped-def]
         user = UserFactory()
         places = [
-            PlaceFactory(name=f"Place {i}", is_verified=True, city=City.ASTANA)
-            for i in range(3)
+            PlaceFactory(name=f"Place {i}", is_verified=True, city=City.ASTANA) for i in range(3)
         ]
         _patch_llm(
             mocker,
@@ -126,9 +122,7 @@ class TestRecommendService:
 
         _patch_llm(
             mocker,
-            response=_llm_response(
-                [{"place_id": 999999, "reasoning": "x"}]
-            ),
+            response=_llm_response([{"place_id": 999999, "reasoning": "x"}]),
         )
 
         with pytest.raises(AiNoValidPlaces):
@@ -197,17 +191,12 @@ class TestRecommendService:
     def test_max_recommendations_truncated(self, mocker) -> None:  # type: ignore[no-untyped-def]
         """Если модель вернула 5+ — режем до MAX_RECOMMENDATIONS=3."""
         user = UserFactory()
-        places = [
-            PlaceFactory(is_verified=True, city=City.ASTANA) for _ in range(5)
-        ]
+        places = [PlaceFactory(is_verified=True, city=City.ASTANA) for _ in range(5)]
 
         _patch_llm(
             mocker,
             response=_llm_response(
-                [
-                    {"place_id": p.id, "reasoning": f"r{i}"}
-                    for i, p in enumerate(places)
-                ]
+                [{"place_id": p.id, "reasoning": f"r{i}"} for i, p in enumerate(places)]
             ),
         )
 
@@ -224,9 +213,7 @@ class TestRecommendService:
 
         client_mock = _patch_llm(
             mocker,
-            response=_llm_response(
-                [{"place_id": place.id, "reasoning": "ok"}]
-            ),
+            response=_llm_response([{"place_id": place.id, "reasoning": "ok"}]),
         )
 
         async_to_sync(recommend)(user_id=user.pk, query="куда поработать")

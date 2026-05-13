@@ -1,4 +1,5 @@
 """Ошибки auth-домена. Наследуются от DomainError (НЕ от APIException)."""
+
 from __future__ import annotations
 
 from apps.core.exceptions import DomainError

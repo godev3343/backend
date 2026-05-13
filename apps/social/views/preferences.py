@@ -5,6 +5,7 @@ PUT /api/users/me/preferences — атомарная замена AI-настр�
 эндпоинт от PATCH /me, чтобы фронт онбординга мог использовать PUT
 (идемпотентно по smtp-ретраю) и не следить за тем, какие поля прислал.
 """
+
 from __future__ import annotations
 
 from rest_framework import status

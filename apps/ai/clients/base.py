@@ -1,4 +1,5 @@
 """Абстрактный LLM-клиент. Реализации — Anthropic, Gemini и т.д."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -55,9 +56,7 @@ class LLMClient(Protocol):
 class LLMError(Exception):
     """Любая ошибка LLM-провайдера. Сервис ловит и решает что показать юзеру."""
 
-    def __init__(
-        self, message: str, *, provider: str, status_code: int | None = None
-    ) -> None:
+    def __init__(self, message: str, *, provider: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.provider = provider
         self.status_code = status_code

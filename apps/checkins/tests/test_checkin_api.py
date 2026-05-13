@@ -1,15 +1,14 @@
 # apps/checkins/tests/test_checkin_api.py
 """API-тесты для POST /api/checkins и GET /api/checkins/me."""
+
 from __future__ import annotations
 
 import pytest
 from django.contrib.gis.geos import Point
 from django.urls import reverse
 
-from apps.checkins.models import CheckIn
 from apps.checkins.tests.factories import CheckInFactory
 from apps.places.tests.factories import PlaceFactory
-
 
 PLACE_LAT, PLACE_LNG = 51.0908, 71.4187
 

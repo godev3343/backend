@@ -1,4 +1,5 @@
 """Дружба между пользователями."""
+
 from __future__ import annotations
 
 from django.conf import settings

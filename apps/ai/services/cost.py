@@ -9,6 +9,7 @@ cost_usd всё равно 0, но считаем правильно для бу
 Если перешли на платный tier — апдейтим тут и катим миграцию данных в логах
 если нужен пересчёт исторических costs (вряд ли).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

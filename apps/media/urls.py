@@ -1,4 +1,5 @@
 """Маршруты media: presign / confirm / asset detail."""
+
 from __future__ import annotations
 
 from django.urls import path

@@ -1,9 +1,9 @@
 """Кастомный менеджер для User."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 from django.db import transaction
 
@@ -29,7 +29,7 @@ class CustomUserManager(BaseUserManager["User"]):
         first_name: str,
         password: str | None = None,
         **extra_fields: Any,
-    ) -> "User":
+    ) -> User:
         if not email:
             raise ValueError("Email is required")
         if not first_name:
@@ -52,7 +52,7 @@ class CustomUserManager(BaseUserManager["User"]):
         first_name: str = "Admin",
         password: str | None = None,
         **extra_fields: Any,
-    ) -> "User":
+    ) -> User:
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)

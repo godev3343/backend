@@ -1,4 +1,5 @@
 """GET /api/users/me/points — история начислений текущего юзера."""
+
 from __future__ import annotations
 
 from rest_framework.generics import ListAPIView
@@ -25,6 +26,6 @@ class MyPointsHistoryView(ListAPIView):
     serializer_class = PointsTransactionSerializer
 
     def get_queryset(self):  # type: ignore[no-untyped-def]
-        return PointsTransaction.objects.filter(
-            user=self.request.user
-        ).order_by("-created_at", "-id")
+        return PointsTransaction.objects.filter(user=self.request.user).order_by(
+            "-created_at", "-id"
+        )

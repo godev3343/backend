@@ -1,4 +1,5 @@
 """Тесты на email_verified_at и is_email_verified property."""
+
 from __future__ import annotations
 
 import pytest

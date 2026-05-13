@@ -1,4 +1,5 @@
 """Публичные представления юзера (для других пользователей)."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

@@ -1,4 +1,5 @@
 """Сидинг 10+ событий из JSON-фикстуры."""
+
 from __future__ import annotations
 
 import json
@@ -47,16 +48,12 @@ class Command(BaseCommand):
                 location = Point(item["lng"], item["lat"], srid=4326)
 
             if place is None and location is None:
-                self.stderr.write(
-                    f"Пропущено '{item['title']}' — нет ни place, ни координат"
-                )
+                self.stderr.write(f"Пропущено '{item['title']}' — нет ни place, ни координат")
                 continue
 
             starts_at = make_aware(datetime.fromisoformat(item["starts_at"]))
             ends_at = (
-                make_aware(datetime.fromisoformat(item["ends_at"]))
-                if item.get("ends_at")
-                else None
+                make_aware(datetime.fromisoformat(item["ends_at"])) if item.get("ends_at") else None
             )
 
             _, was_created = Event.objects.update_or_create(

@@ -1,4 +1,5 @@
 """Сериализатор онбординга и минимальный UserMe."""
+
 from __future__ import annotations
 
 from rest_framework import serializers
@@ -13,16 +14,12 @@ class OnboardingRequestSerializer(serializers.Serializer):
     """
 
     display_name = serializers.CharField(min_length=2, max_length=100)
-    bio = serializers.CharField(
-        required=False, allow_blank=True, max_length=300, default=""
-    )
+    bio = serializers.CharField(required=False, allow_blank=True, max_length=300, default="")
     consent = serializers.BooleanField()
 
     def validate_consent(self, value: bool) -> bool:
         if not value:
-            raise serializers.ValidationError(
-                "Consent to data processing is required."
-            )
+            raise serializers.ValidationError("Consent to data processing is required.")
         return value
 
 

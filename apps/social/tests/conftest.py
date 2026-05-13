@@ -4,6 +4,7 @@
 Throttle-state хранится в Django cache (Redis). Чистим перед каждым
 тестом, иначе серия запросов на friend_request упирается в 30/h лимит.
 """
+
 from __future__ import annotations
 
 import pytest

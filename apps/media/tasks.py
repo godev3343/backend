@@ -16,6 +16,7 @@ Retry:
 - Не ретраим на ImageProcessingError — битый файл сам не починится.
 - Ставим FAILED только когда retry исчерпан или ошибка не-ретраиабельна.
 """
+
 from __future__ import annotations
 
 import logging
@@ -63,9 +64,7 @@ def _mark_failed(
         try:
             delete_objects(delete_uploaded_keys)
         except R2Error:
-            logger.exception(
-                "cleanup_failed_variants_failed asset_id=%s", asset_id
-            )
+            logger.exception("cleanup_failed_variants_failed asset_id=%s", asset_id)
 
     MediaAsset.objects.filter(pk=asset_id).update(
         status=MediaStatus.FAILED,
@@ -117,7 +116,8 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
     except R2ObjectNotFound:
         logger.error(
             "process_image: source missing asset_id=%s key=%s",
-            asset_id, asset.key_original,
+            asset_id,
+            asset.key_original,
         )
         _mark_failed(asset_id, MediaFailureReason.SOURCE_MISSING)
         return
@@ -130,9 +130,7 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
         _mark_failed(asset_id, MediaFailureReason.TOO_SMALL)
         return
     except ImageProcessingError as exc:
-        logger.warning(
-            "process_image: invalid_format asset_id=%s err=%s", asset_id, exc
-        )
+        logger.warning("process_image: invalid_format asset_id=%s err=%s", asset_id, exc)
         _mark_failed(asset_id, MediaFailureReason.INVALID_FORMAT)
         return
 
@@ -182,9 +180,7 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
             )
             uploaded_keys.append(new_original_key)
     except R2Error:
-        logger.exception(
-            "process_image: r2 upload failed asset_id=%s", asset_id
-        )
+        logger.exception("process_image: r2 upload failed asset_id=%s", asset_id)
         _mark_failed(
             asset_id,
             MediaFailureReason.PROCESSING_ERROR,
@@ -194,9 +190,7 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
 
     # ---- 4. update asset -----------------------------------------------
     with transaction.atomic():
-        updated = MediaAsset.objects.filter(
-            pk=asset_id, status=MediaStatus.PENDING
-        ).update(
+        updated = MediaAsset.objects.filter(pk=asset_id, status=MediaStatus.PENDING).update(
             status=MediaStatus.PROCESSED,
             key_original=new_original_key,
             key_feed=feed_key,
@@ -229,7 +223,8 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
             # Не фейлимся — оригинал останется как мусор, потом GC-таска уберёт
             logger.warning(
                 "failed to delete old original asset_id=%s key=%s",
-                asset_id, asset.key_original,
+                asset_id,
+                asset.key_original,
             )
 
     # Сигнал post_save сработает после save(), но мы апдейтили через update()
@@ -238,6 +233,7 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
     asset.refresh_from_db()
     # Эмитим сигнал вручную через save (только для триггера, поля уже в БД)
     from django.db.models.signals import post_save
+
     post_save.send(
         sender=MediaAsset,
         instance=asset,
@@ -247,5 +243,7 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
 
     logger.info(
         "process_image done: asset_id=%s feed=%s thumb=%s",
-        asset_id, feed_key, thumb_key,
+        asset_id,
+        feed_key,
+        thumb_key,
     )

@@ -10,6 +10,7 @@ Seed Place + PlaceCategory + PlaceVibe из JSON-фикстуры.
     python manage.py seed_places --file fixtures/places_astana.json
     python manage.py seed_places --file fixtures/places.json --city astana
 """
+
 from __future__ import annotations
 
 import json
@@ -114,8 +115,4 @@ class Command(BaseCommand):
             else:
                 updated += 1
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Готово. Создано: {created}, обновлено: {updated}"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Готово. Создано: {created}, обновлено: {updated}"))

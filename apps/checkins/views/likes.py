@@ -1,5 +1,6 @@
 # apps/checkins/views/likes.py
 """POST/DELETE /api/checkins/{id}/like — лайк/анлайк."""
+
 from __future__ import annotations
 
 from rest_framework import status
@@ -29,9 +30,7 @@ class CheckInLikeView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         result = LikeService.like(user=request.user, checkin_id=pk)
         status_code = (
-            status.HTTP_201_CREATED
-            if result == LikeResult.CREATED
-            else status.HTTP_200_OK
+            status.HTTP_201_CREATED if result == LikeResult.CREATED else status.HTTP_200_OK
         )
         return Response(
             self._payload(checkin_id=pk, is_liked=True),
@@ -54,10 +53,7 @@ class CheckInLikeView(APIView):
         from apps.checkins.models import CheckIn
 
         likes_count = (
-            CheckIn.objects.filter(pk=checkin_id)
-            .values_list("likes_count", flat=True)
-            .first()
-            or 0
+            CheckIn.objects.filter(pk=checkin_id).values_list("likes_count", flat=True).first() or 0
         )
         return {
             "checkin_id": checkin_id,

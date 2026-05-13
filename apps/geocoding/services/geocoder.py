@@ -9,6 +9,7 @@ NB: НЕ кэшируем proximity-bias. Запрос "Кафе" из Аста�
 места админом) этого хватает. Если позже нужен proximity-aware кэш —
 добавим в ключ.
 """
+
 from __future__ import annotations
 
 import hashlib

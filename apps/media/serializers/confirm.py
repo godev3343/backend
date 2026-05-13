@@ -1,4 +1,5 @@
 """Сериализаторы для POST /api/upload/confirm."""
+
 from __future__ import annotations
 
 from rest_framework import serializers

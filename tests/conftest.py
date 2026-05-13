@@ -1,4 +1,5 @@
 """Глобальные фикстуры pytest."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -18,19 +19,19 @@ def api_client() -> APIClient:
 
 
 @pytest.fixture
-def user_factory(db) -> Callable[..., "AbstractUser"]:
+def user_factory(db) -> Callable[..., AbstractUser]:
     from apps.users.tests.factories import UserFactory
 
     return UserFactory
 
 
 @pytest.fixture
-def user(user_factory: Callable[..., "AbstractUser"]) -> "AbstractUser":
+def user(user_factory: Callable[..., AbstractUser]) -> AbstractUser:
     return user_factory()
 
 
 @pytest.fixture
-def authed_client(api_client: APIClient, user: "AbstractUser") -> APIClient:
+def authed_client(api_client: APIClient, user: AbstractUser) -> APIClient:
     """API client с JWT текущего пользователя."""
     refresh = RefreshToken.for_user(user)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")

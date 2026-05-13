@@ -1,4 +1,5 @@
 """Тесты сборки AI-контекста."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -12,7 +13,7 @@ from apps.ai.services.context import (
     bump_vibes_version,
     get_vibes_version,
 )
-from apps.places.models import City, PlaceVibe, PlaceVibeTag
+from apps.places.models import City, PlaceVibeTag
 from apps.places.tests.factories import (
     PlaceCategoryFactory,
     PlaceFactory,
