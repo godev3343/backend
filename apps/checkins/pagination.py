@@ -1,23 +1,17 @@
-"""
-Cursor-pagination для лент чек-инов.
-
-Выбор cursor вместо offset:
-- На ленте друзей offset → DoS-вектор (большие OFFSET сканируют лишнее).
-- Cursor стабильно работает при вставке новых чек-инов в начало.
-
-Сортировка по (-created_at, -id) — second key обязателен, иначе при
-одинаковом timestamp курсор может либо повторить чек-ины, либо пропустить.
-"""
+"""Cursor-пагинация для чек-инов и ленты."""
 from __future__ import annotations
 
 from rest_framework.pagination import CursorPagination
 
 
 class CheckInCursorPagination(CursorPagination):
-    """Cursor pagination на (-created_at, -id). Page size 20, max 50."""
+    """
+    Cursor по (-created_at, -id). Tiebreak по id обязателен — без него
+    курсор может пропустить/повторить записи с одинаковым timestamp
+    (бывает в тестах и при batch-импорте).
+    """
 
     page_size = 20
-    page_size_query_param = "limit"
     max_page_size = 50
     ordering = ("-created_at", "-id")
     cursor_query_param = "cursor"

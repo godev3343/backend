@@ -23,11 +23,12 @@ if TYPE_CHECKING:
 
 
 # Размер награды по причине. Источник правды — здесь, не в вызывающем коде.
+# Pre-MVP scope: только то что реально вызывается из сервисов.
+# Сезонное обнуление, статусы, рефералка — Этап 1.
 POINTS_BY_REASON: dict[str, int] = {
-    PointsReason.SIGNUP: 10,
     PointsReason.CHECKIN: 5,
     PointsReason.FIRST_CHECKIN: 10,
-    PointsReason.REFERRAL: 20,
+    PointsReason.FRIEND_ADDED: 5,
 }
 
 
@@ -51,15 +52,15 @@ class PointsService:
         POINTS_BY_REASON.
 
         Контракт:
-            ref_id=None → одноразовое начисление (как SIGNUP). Уникальность
-                          по (user, reason).
-            ref_id=N    → событийное (CHECKIN на checkin#42). Уникальность
-                          по (user, reason, ref_type, ref_id).
+            ref_id=None → одноразовое начисление. Уникальность по (user, reason).
+            ref_id=N    → событийное (CHECKIN на checkin#42, FRIEND_ADDED
+                          на friendship#7). Уникальность по
+                          (user, reason, ref_type, ref_id).
 
         Использовать внутри @transaction.atomic из вызывающего сервиса,
-        чтобы создание чек-ина и поинтов либо коммитились вместе, либо
-        откатывались вместе. Сам метод тоже оборачивает в savepoint
-        для корректного обработки IntegrityError при идемпотентности.
+        чтобы создание родительского события и поинтов либо коммитились
+        вместе, либо откатывались вместе. Сам метод тоже оборачивает в
+        savepoint для корректной обработки IntegrityError при идемпотентности.
 
         Returns:
             PointsTransaction — если начисление произошло.
@@ -71,7 +72,7 @@ class PointsService:
         delta = POINTS_BY_REASON[reason]
 
         # Savepoint — чтобы IntegrityError на дубликате не уронил внешнюю
-        # транзакцию (CheckInService остаётся валидным).
+        # транзакцию (CheckInService/FriendshipService остаётся валидным).
         try:
             with transaction.atomic():
                 tx = PointsTransaction.objects.create(

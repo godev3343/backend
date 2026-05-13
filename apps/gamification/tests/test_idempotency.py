@@ -59,20 +59,31 @@ class TestPointsTransactionIdempotency:
             )
         assert PointsTransaction.objects.count() == 2
 
-    def test_signup_duplicate_fails(self) -> None:
-        """Для одноразовых причин (signup) — ref_id NULL, уникальность по (user, reason)."""
+    def test_no_ref_duplicate_fails(self) -> None:
+        """
+        ref_id=None → constraint pointstx_idempotency_no_ref:
+        уникальность по (user, reason). Повторная запись с теми же
+        (user, reason, ref_id=None) должна падать.
+
+        В pre-MVP ни один reason не используется с ref_id=None (всё событийное),
+        но контракт модели его поддерживает — тест защищает constraint
+        от случайного снятия при будущих миграциях.
+        """
         user = UserFactory()
         PointsTransaction.objects.create(
-            user=user, delta=10, reason=PointsReason.SIGNUP
+            user=user, delta=5, reason=PointsReason.CHECKIN
         )
         with pytest.raises(IntegrityError):
             PointsTransaction.objects.create(
-                user=user, delta=10, reason=PointsReason.SIGNUP
+                user=user, delta=5, reason=PointsReason.CHECKIN
             )
 
-    def test_signup_different_users_ok(self) -> None:
+    def test_no_ref_different_users_ok(self) -> None:
+        """Constraint per-user: разные юзеры независимо."""
         u1 = UserFactory()
         u2 = UserFactory()
-        PointsTransaction.objects.create(user=u1, delta=10, reason=PointsReason.SIGNUP)
-        PointsTransaction.objects.create(user=u2, delta=10, reason=PointsReason.SIGNUP)
-        assert PointsTransaction.objects.filter(reason=PointsReason.SIGNUP).count() == 2
+        PointsTransaction.objects.create(user=u1, delta=5, reason=PointsReason.CHECKIN)
+        PointsTransaction.objects.create(user=u2, delta=5, reason=PointsReason.CHECKIN)
+        assert PointsTransaction.objects.filter(
+            reason=PointsReason.CHECKIN, ref_id__isnull=True
+        ).count() == 2

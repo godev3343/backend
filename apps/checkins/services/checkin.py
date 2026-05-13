@@ -5,9 +5,10 @@ CheckInService — создание чек-инов.
 - Дистанция проверяется через PostGIS `ST_DWithin(geography, geography, 100)`.
   Cast в geography обязателен: на geometry SRID=4326 расстояние интерпретируется
   в градусах. Geography считает в метрах напрямую.
-- Бонус "first_checkin among friends" — отдельный EXISTS-запрос ДО создания
-  чек-ина. Считаем что текущий чек-ин ещё не создан, поэтому он не повлияет
-  на собственное условие "среди друзей никто не чек-инился".
+- Бонус FIRST_CHECKIN — отдельный EXISTS-запрос ДО создания чек-ина:
+  "первый раз ЭТОГО юзера в ЭТОМ месте". Семантика по бизнес-плану §5.1
+  ("первое посещение места"). НЕ путать с социальным "первый среди друзей" —
+  такой механики в pre-MVP нет.
 - Фото: photo_key — это R2-ключ MediaAsset'а, загруженного через EPIC 4
   (POST /api/upload/presign → /confirm → process_image task). Мы находим
   asset по key + owner=user + purpose=CHECKIN + status=PROCESSED, и создаём
@@ -23,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from django.contrib.gis.geos import Point
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Q
 
 from apps.checkins.models import CheckIn
 from apps.checkins.services.exceptions import (
@@ -36,7 +36,6 @@ from apps.checkins.services.exceptions import (
 from apps.gamification.models import PointsReason
 from apps.gamification.services import PointsService
 from apps.places.models import Place, PlacePhoto
-from apps.social.models import Friendship, FriendshipStatus
 
 if TYPE_CHECKING:
     from apps.users.models import User as UserType
@@ -67,7 +66,7 @@ class CheckInService:
         Создаёт чек-ин со всеми сайд-эффектами:
         - PlacePhoto (если photo_key передан и валиден).
         - PointsTransaction +5 за чек-ин.
-        - PointsTransaction +10 за первый чек-ин среди друзей (если применимо).
+        - PointsTransaction +10 за первый чек-ин юзера в этом месте.
 
         Все операции в одной транзакции — либо всё, либо ничего.
 
@@ -87,7 +86,7 @@ class CheckInService:
 
         # Бонус ДО создания чек-ина: иначе текущий чек-ин засчитается
         # как "уже был" и бонус никогда не сработает.
-        is_first_among_friends = cls._is_first_checkin_among_friends(
+        is_first_at_place = cls._is_users_first_checkin_at_place(
             user_id=user.pk, place_id=place.pk
         )
 
@@ -109,7 +108,7 @@ class CheckInService:
             ref_id=checkin.pk,
         )
 
-        if is_first_among_friends:
+        if is_first_at_place:
             PointsService.award(
                 user=user,
                 reason=PointsReason.FIRST_CHECKIN,
@@ -146,17 +145,20 @@ class CheckInService:
         не умеет geography-cast, а GeoDjango Distance-функция работает
         в единицах SRID. Минимум кода с минимумом сюрпризов.
         """
-        within = Place.objects.filter(pk=place.pk).extra(  # noqa: SLF001
-            where=[
-                "ST_DWithin("
-                "location::geography, "
-                "ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, "
-                "%s"
-                ")"
-            ],
-            params=[user_point.x, user_point.y, MAX_CHECKIN_DISTANCE_M],
-        ).exists()
-
+        within = (
+            Place.objects.filter(pk=place.pk)
+            .extra(
+                where=[
+                    "ST_DWithin("
+                    "location::geography, "
+                    "ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, "
+                    "%s"
+                    ")"
+                ],
+                params=[user_point.x, user_point.y, MAX_CHECKIN_DISTANCE_M],
+            )
+            .exists()
+        )
         if not within:
             raise TooFarFromPlace()
 
@@ -168,26 +170,23 @@ class CheckInService:
         photo_key: str | None,
     ) -> PlacePhoto | None:
         """
-        Превращает photo_key в PlacePhoto.
+        Преобразует photo_key (R2-ключ MediaAsset.key_original) в PlacePhoto.
 
-        Алгоритм:
-        1. Ищем MediaAsset по (key_original=photo_key, owner=user,
-           purpose=CHECKIN, status=PROCESSED).
-        2. Если asset уже привязан к PlacePhoto (one-to-one) — переиспользуем
-           её. Это покрывает случай retry на /api/checkins с тем же photo_key.
-        3. Иначе создаём новую PlacePhoto(place, asset, uploaded_by=user).
+        Контракт photo_key:
+        - MediaAsset должен принадлежать юзеру (owner=user)
+        - purpose=CHECKIN
+        - status=PROCESSED (process_image отработал)
 
-        NB: импорт MediaAsset делаем здесь, а не сверху файла — избегаем
-        циркулярного импорта (apps.media → ... → apps.checkins в будущем,
-        если медиа начнёт ссылаться на чек-ины).
+        Если PlacePhoto на этот asset уже существует (OneToOne) — переиспользуем
+        (покрывает retry с тем же photo_key и идемпотентность).
         """
-        if not photo_key:
+        if photo_key is None:
             return None
 
         from apps.media.models import MediaAsset, MediaPurpose, MediaStatus
 
         try:
-            asset: MediaAsset = MediaAsset.objects.get(
+            asset = MediaAsset.objects.get(
                 key_original=photo_key,
                 owner=user,
                 purpose=MediaPurpose.CHECKIN,
@@ -198,7 +197,6 @@ class CheckInService:
         if asset.status != MediaStatus.PROCESSED:
             raise PhotoNotReady()
 
-        # OneToOne: если PlacePhoto уже существует на этот asset — берём её.
         existing = PlacePhoto.objects.filter(asset=asset).first()
         if existing is not None:
             return existing
@@ -210,39 +208,16 @@ class CheckInService:
         )
 
     @staticmethod
-    def _is_first_checkin_among_friends(*, user_id: int, place_id: int) -> bool:
+    def _is_users_first_checkin_at_place(*, user_id: int, place_id: int) -> bool:
         """
-        True, если бонус "первый среди друзей" должен начислиться.
+        True, если у этого юзера ещё нет ни одного чек-ина в этом месте.
 
-        Семантика (уточнение к ТЗ 6.1):
-        1. У юзера должен быть хотя бы один друг (бонус именно за SOCIAL
-           discovery, а не за одинокую вылазку).
-        2. Ни сам юзер, ни кто-то из его друзей ещё НЕ чек-инились здесь
-           (включаем самого юзера, чтобы повторные чек-ины не крутили бонус).
+        Семантика (бизнес-план §5.1, "первое посещение места"): личный бонус
+        за разведку. Не зависит от друзей, не зависит от других юзеров.
 
-        Эти два правила вместе исключают пограничные кейсы:
-        - юзер без друзей → False
-        - повторный чек-ин → False
-        - друг уже был → False
+        Вызывать ДО CheckIn.objects.create() — иначе только что созданный
+        чек-ин сам себе будет помехой.
         """
-        has_friends = Friendship.objects.filter(
-            status=FriendshipStatus.ACCEPTED
-        ).filter(Q(from_user_id=user_id) | Q(to_user_id=user_id)).exists()
-
-        if not has_friends:
-            return False
-
-        friend_ids = Friendship.objects.filter(
-            Q(from_user_id=user_id, to_user_id=OuterRef("user_id"))
-            | Q(to_user_id=user_id, from_user_id=OuterRef("user_id")),
-            status=FriendshipStatus.ACCEPTED,
-        )
-
-        anyone_already_checked_in = (
-            CheckIn.objects.filter(place_id=place_id)
-            .annotate(_is_in_social_net=Exists(friend_ids))
-            .filter(Q(user_id=user_id) | Q(_is_in_social_net=True))
-            .exists()
-        )
-
-        return not anyone_already_checked_in
+        return not CheckIn.objects.filter(
+            user_id=user_id, place_id=place_id
+        ).exists()

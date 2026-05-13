@@ -8,10 +8,9 @@ from apps.core.models import CreatedAtModel
 
 
 class PointsReason(models.TextChoices):
-    SIGNUP = "signup", "Signup"
     CHECKIN = "checkin", "Checkin"
-    FIRST_CHECKIN = "first_checkin", "First check-in"
-    REFERRAL = "referral", "Referral"
+    FIRST_CHECKIN = "first_checkin", "First check-in at place"
+    FRIEND_ADDED = "friend_added", "Friend added"
 
 
 class PointsTransaction(CreatedAtModel):

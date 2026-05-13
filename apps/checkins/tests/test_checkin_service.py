@@ -1,12 +1,11 @@
-# apps/checkins/tests/test_checkin_service.py
 """
 Тесты бизнес-логики CheckInService.
 
 Покрытие по ТЗ 6.5:
 - чек-ин дальше 100м → TooFarFromPlace
 - чек-ин в пределах → создан + +5 поинтов
-- второй чек-ин в это же место не даёт first_checkin бонус (нет друзей)
-- сценарий с другом: первый = бонус, повторный другом = без бонуса
+- первый чек-ин юзера в этом месте → +10 (FIRST_CHECKIN)
+- повторный чек-ин в то же место → без FIRST_CHECKIN бонуса
 """
 from __future__ import annotations
 
@@ -22,8 +21,6 @@ from apps.checkins.services.exceptions import (
 )
 from apps.gamification.models import PointsReason, PointsTransaction
 from apps.places.tests.factories import PlaceFactory
-from apps.social.models import FriendshipStatus
-from apps.social.tests.factories import FriendshipFactory
 from apps.users.tests.factories import UserFactory
 
 
@@ -43,7 +40,6 @@ class TestCreateCheckIn:
     def test_creates_within_range(self) -> None:
         user = UserFactory()
         place = _make_place()
-        # Сам юзер в той же точке — 0м.
         checkin = CheckInService.create(
             user=user,
             place_id=place.pk,
@@ -59,7 +55,6 @@ class TestCreateCheckIn:
     def test_too_far_raises(self) -> None:
         user = UserFactory()
         place = _make_place()
-        # ~1 градус по широте = ~111км. Запредельно далеко.
         with pytest.raises(TooFarFromPlace):
             CheckInService.create(
                 user=user,
@@ -70,10 +65,7 @@ class TestCreateCheckIn:
         assert CheckIn.objects.count() == 0
 
     def test_just_outside_100m_fails(self) -> None:
-        """
-        ~150м к северу от точки места.
-        0.00135° по широте ≈ 150м. За пределами 100м → должен упасть.
-        """
+        """~150м к северу: 0.00135° по широте ≈ 150м."""
         user = UserFactory()
         place = _make_place()
         with pytest.raises(TooFarFromPlace):
@@ -91,7 +83,7 @@ class TestCreateCheckIn:
         CheckInService.create(
             user=user,
             place_id=place.pk,
-            latitude=PLACE_LAT + 0.00045,  # ~50м
+            latitude=PLACE_LAT + 0.00045,
             longitude=PLACE_LNG,
         )
         assert CheckIn.objects.count() == 1
@@ -103,7 +95,7 @@ class TestCreateCheckIn:
             CheckInService.create(
                 user=user,
                 place_id=place.pk,
-                latitude=95.0,  # вне [-90, 90]
+                latitude=95.0,
                 longitude=PLACE_LNG,
             )
 
@@ -120,114 +112,90 @@ class TestCreateCheckIn:
 
 @pytest.mark.django_db
 class TestPointsAwarding:
-    def test_awards_checkin_points(self) -> None:
+    """
+    Семантика FIRST_CHECKIN — личная: "первый раз юзера в этом месте".
+    Друзья не участвуют (изменено в EPIC 9 по бизнес-плану §5.1).
+    """
+
+    def test_first_checkin_awards_checkin_and_first_bonus(self) -> None:
+        """Первый раз в месте → +5 (CHECKIN) и +10 (FIRST_CHECKIN)."""
         user = UserFactory()
         place = _make_place()
         CheckInService.create(
             user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
-        # +5 за чек-ин
-        # Друзей нет — first_checkin не начисляется.
         txs = list(
             PointsTransaction.objects.filter(user=user).order_by("created_at")
         )
-        assert len(txs) == 1
-        assert txs[0].reason == PointsReason.CHECKIN
-        assert txs[0].delta == 5
+        reasons = {tx.reason for tx in txs}
+        assert reasons == {PointsReason.CHECKIN, PointsReason.FIRST_CHECKIN}
         user.refresh_from_db()
-        assert user.points == 5
+        assert user.points == 5 + 10
 
-    def test_no_first_checkin_bonus_when_no_friends(self) -> None:
-        """Юзер без друзей чек-инится первый раз — бонуса нет (нет друзей)."""
+    def test_second_checkin_same_place_no_first_bonus(self) -> None:
+        """Повторный чек-ин в то же место → только +5, без FIRST_CHECKIN."""
         user = UserFactory()
         place = _make_place()
         CheckInService.create(
             user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
-        first_bonus = PointsTransaction.objects.filter(
+        CheckInService.create(
+            user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
+        )
+        first_bonuses = PointsTransaction.objects.filter(
             user=user, reason=PointsReason.FIRST_CHECKIN
         )
-        assert not first_bonus.exists()
-
-    def test_first_checkin_among_friends_awards_bonus(self) -> None:
-        """
-        a и b друзья. b чек-инится первым из своей friend-сети → +10.
-        """
-        a = UserFactory()
-        b = UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
+        checkins = PointsTransaction.objects.filter(
+            user=user, reason=PointsReason.CHECKIN
         )
-        place = _make_place()
+        assert first_bonuses.count() == 1
+        assert checkins.count() == 2
+        user.refresh_from_db()
+        # 5 (1-й чек-ин) + 10 (first bonus) + 5 (2-й чек-ин) = 20
+        assert user.points == 20
 
+    def test_first_checkin_independent_per_place(self) -> None:
+        """Юзер чек-инится в разные места → FIRST_CHECKIN бонус за каждое."""
+        user = UserFactory()
+        place_a = _make_place()
+        place_b = PlaceFactory(
+            location=Point(PLACE_LNG + 0.5, PLACE_LAT + 0.5, srid=4326),
+            is_verified=True,
+        )
         CheckInService.create(
-            user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
+            user=user, place_id=place_a.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
-
-        bonus = PointsTransaction.objects.filter(
-            user=b, reason=PointsReason.FIRST_CHECKIN
+        CheckInService.create(
+            user=user,
+            place_id=place_b.pk,
+            latitude=PLACE_LAT + 0.5,
+            longitude=PLACE_LNG + 0.5,
         )
-        assert bonus.count() == 1
-        assert bonus.first().delta == 10
-        b.refresh_from_db()
-        assert b.points == 5 + 10  # checkin + first_checkin
+        first_bonuses = PointsTransaction.objects.filter(
+            user=user, reason=PointsReason.FIRST_CHECKIN
+        )
+        assert first_bonuses.count() == 2
 
-    def test_second_friend_does_not_get_first_bonus(self) -> None:
+    def test_first_checkin_independent_per_user(self) -> None:
         """
-        a уже чек-инилcя в место X. b — друг a — чек-инится туда же.
-        b НЕ получает first_checkin (потому что друг уже там был).
+        a и b — оба впервые чек-инятся в одно место. Оба получают FIRST_CHECKIN.
+        Бонус личный, не глобальный "первооткрыватель".
         """
         a = UserFactory()
         b = UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
         place = _make_place()
-
-        # a первый
         CheckInService.create(
             user=a, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
-        # b второй (но первый из своих)
         CheckInService.create(
             user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
-
-        # У a friend_checkin был бы только если кто-то из его друзей был тут до него.
-        # b — друг — пришёл ПОСЛЕ a. Значит a получил бонус (он первый из своих),
-        # а b — НЕТ (a — его друг — уже отметился).
-        a_bonus = PointsTransaction.objects.filter(
+        assert PointsTransaction.objects.filter(
             user=a, reason=PointsReason.FIRST_CHECKIN
-        ).exists()
-        b_bonus = PointsTransaction.objects.filter(
+        ).count() == 1
+        assert PointsTransaction.objects.filter(
             user=b, reason=PointsReason.FIRST_CHECKIN
-        ).exists()
-        assert a_bonus is True
-        assert b_bonus is False
-
-    def test_same_user_second_checkin_no_first_bonus(self) -> None:
-        """
-        Тот же юзер чек-инится дважды в одно место → бонус FIRST_CHECKIN
-        только за первый раз. Семантика: бонус за разведку, не за повторы.
-        """
-        a = UserFactory()
-        b = UserFactory()
-        FriendshipFactory(
-            from_user=a, to_user=b, status=FriendshipStatus.ACCEPTED
-        )
-        place = _make_place()
-
-        CheckInService.create(
-            user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
-        )
-        CheckInService.create(
-            user=b, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
-        )
-
-        first_bonuses = PointsTransaction.objects.filter(
-            user=b, reason=PointsReason.FIRST_CHECKIN
-        )
-        assert first_bonuses.count() == 1
+        ).count() == 1
 
 
 @pytest.mark.django_db
@@ -236,8 +204,6 @@ class TestIdempotencyOfPoints:
         """
         Сценарий: каким-то образом вызвали award вторично для того же
         checkin. Idempotency-constraint не даёт создать вторую транзакцию.
-        Тестим напрямую через PointsService, чтобы было понятно что именно
-        работает.
         """
         from apps.gamification.services import PointsService
 
@@ -247,7 +213,6 @@ class TestIdempotencyOfPoints:
             user=user, place_id=place.pk, latitude=PLACE_LAT, longitude=PLACE_LNG
         )
 
-        # Повторное награждение — должно вернуть None и не упасть
         result = PointsService.award(
             user=user,
             reason=PointsReason.CHECKIN,
@@ -255,7 +220,6 @@ class TestIdempotencyOfPoints:
             ref_id=checkin.pk,
         )
         assert result is None
-        # Транзакция всё ещё одна
         assert (
             PointsTransaction.objects.filter(
                 user=user, reason=PointsReason.CHECKIN, ref_id=checkin.pk

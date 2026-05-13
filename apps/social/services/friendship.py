@@ -1,13 +1,16 @@
-# apps/social/services/friendship.py
 """
 FriendshipService — управление заявками и дружбой.
 
-Дизайн-решения (зафиксированы в EPIC 3):
+Дизайн-решения (зафиксированы в EPIC 3 + EPIC 9):
 - Одна запись на пару: from_user → to_user. На accept меняем status,
   не создаём зеркальную запись.
 - decline = hard delete: позволяет повторно отправить заявку, не плодит
   declined-строки.
-- Поинты НЕ начисляются в EPIC 3 (хук-комментарий в accept — для EPIC 9).
+- При accept начисляем +5 обоим (PointsReason.FRIEND_ADDED, ref=friendship.pk).
+  Идемпотентно: повторный accept уже-accepted дружбы не дублирует поинты.
+  После decline + новой accept создаётся новый Friendship с новым pk →
+  новое начисление. Это сознательная плата за простоту в pre-MVP; антифрод
+  и сезонное обнуление — Этап 1.
 - Блокировки (status=BLOCKED) учитываются: ни одна из сторон не может
   отправить заявку другой, пока запись BLOCKED существует.
 """
@@ -19,6 +22,8 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
+from apps.gamification.models import PointsReason
+from apps.gamification.services import PointsService
 from apps.social.models import Friendship, FriendshipStatus
 from apps.social.services.exceptions import (
     AlreadyFriends,
@@ -34,6 +39,11 @@ if TYPE_CHECKING:
     from apps.users.models import User as UserType
 
 User = get_user_model()
+
+
+# ref_type для PointsTransaction по дружбе. Константа, чтобы случайно
+# не разойтись с тестами или будущими вызовами.
+_FRIENDSHIP_REF_TYPE = "friendship"
 
 
 class FriendshipService:
@@ -84,7 +94,7 @@ class FriendshipService:
                 # друг другу одновременно.
                 f.status = FriendshipStatus.ACCEPTED
                 f.save(update_fields=["status"])
-                # TODO(EPIC 9): начислить поинты обоим (PointsService.award)
+                cls._award_friend_added(f, from_user=from_user, to_user=to_user)
                 return f
 
         try:
@@ -107,7 +117,8 @@ class FriendshipService:
         Принять входящую заявку. Бросает FriendshipNotFound / NotRecipient.
 
         Идемпотентно: повторный accept уже accepted-заявки возвращает её
-        без ошибки.
+        без ошибки и БЕЗ повторного начисления (PointsService.award гарантирует
+        идемпотентность по ref_id=friendship.pk).
         """
         try:
             f = Friendship.objects.select_for_update().get(pk=friendship_id)
@@ -125,7 +136,12 @@ class FriendshipService:
 
         f.status = FriendshipStatus.ACCEPTED
         f.save(update_fields=["status"])
-        # TODO(EPIC 9): начислить поинты обоим (PointsService.award)
+
+        # Полные User-объекты нужны для F-инкремента points через PointsService.
+        # f.from_user/f.to_user не загружены лениво корректно после select_for_update.
+        from_user = User.objects.get(pk=f.from_user_id)
+        to_user = User.objects.get(pk=f.to_user_id)
+        cls._award_friend_added(f, from_user=from_user, to_user=to_user)
         return f
 
     @classmethod
@@ -168,74 +184,35 @@ class FriendshipService:
 
         f.delete()
 
-    @classmethod
-    @transaction.atomic
-    def remove_friend(cls, *, user: "UserType", other_user_id: int) -> None:
-        """
-        Удалить дружбу с other_user_id. Удаляет accepted-запись в любом
-        направлении. Бросает FriendshipNotFound, если друзьями не были.
-        """
-        deleted, _ = Friendship.objects.filter(
-            Q(from_user=user, to_user_id=other_user_id)
-            | Q(from_user_id=other_user_id, to_user=user),
-            status=FriendshipStatus.ACCEPTED,
-        ).delete()
-        if deleted == 0:
-            raise FriendshipNotFound()
+    # ---------- internal helpers ------------------------------------------
 
-    # ---------- queries ----------------------------------------------------
+    @staticmethod
+    def _award_friend_added(
+        friendship: Friendship,
+        *,
+        from_user: "UserType",
+        to_user: "UserType",
+    ) -> None:
+        """
+        Начислить +5 обоим сторонам новой дружбы.
 
-    @classmethod
-    def incoming_requests(cls, *, user: "UserType"):  # type: ignore[no-untyped-def]
-        """Pending-заявки, где user = to_user."""
-        return (
-            Friendship.objects.filter(
-                to_user=user, status=FriendshipStatus.PENDING
-            )
-            .select_related("from_user", "from_user__avatar_asset")
-            .order_by("-created_at")
+        Идемпотентно через PointsService (UniqueConstraint на
+        user+reason+ref_type+ref_id). Повторный вызов для того же
+        friendship.pk вернёт None и ничего не начислит.
+
+        ref_id=friendship.pk: после decline + новой accept создаётся
+        новая запись с новым pk → новое начисление. В Этапе 1 (антифрод +
+        сезонное обнуление) пересмотрим.
+        """
+        PointsService.award(
+            user=from_user,
+            reason=PointsReason.FRIEND_ADDED,
+            ref_type=_FRIENDSHIP_REF_TYPE,
+            ref_id=friendship.pk,
         )
-
-    @classmethod
-    def outgoing_requests(cls, *, user: "UserType"):  # type: ignore[no-untyped-def]
-        """Pending-заявки, где user = from_user."""
-        return (
-            Friendship.objects.filter(
-                from_user=user, status=FriendshipStatus.PENDING
-            )
-            .select_related("to_user", "to_user__avatar_asset")
-            .order_by("-created_at")
+        PointsService.award(
+            user=to_user,
+            reason=PointsReason.FRIEND_ADDED,
+            ref_type=_FRIENDSHIP_REF_TYPE,
+            ref_id=friendship.pk,
         )
-
-    @classmethod
-    def list_friends(cls, *, user: "UserType"):  # type: ignore[no-untyped-def]
-        """
-        Список юзеров, с которыми user в accepted-дружбе.
-        Возвращает QuerySet[User] (counterparts), не Friendship.
-        """
-        # IDs друзей: все записи где (from=user or to=user) и accepted.
-        # Берём counterparty в каждом направлении.
-        outgoing_ids = Friendship.objects.filter(
-            from_user=user, status=FriendshipStatus.ACCEPTED
-        ).values_list("to_user_id", flat=True)
-        incoming_ids = Friendship.objects.filter(
-            to_user=user, status=FriendshipStatus.ACCEPTED
-        ).values_list("from_user_id", flat=True)
-
-        friend_ids = list(outgoing_ids) + list(incoming_ids)
-        return (
-            User.objects.filter(pk__in=friend_ids)
-            .select_related("avatar_asset")
-            .order_by("display_name", "id")
-        )
-
-    @classmethod
-    def is_friends(cls, *, user_a_id: int, user_b_id: int) -> bool:
-        """Хелпер для других сервисов (EPIC 6 — feed, EPIC 7 — события)."""
-        if user_a_id == user_b_id:
-            return False
-        return Friendship.objects.filter(
-            Q(from_user_id=user_a_id, to_user_id=user_b_id)
-            | Q(from_user_id=user_b_id, to_user_id=user_a_id),
-            status=FriendshipStatus.ACCEPTED,
-        ).exists()

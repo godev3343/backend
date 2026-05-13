@@ -700,3 +700,71 @@ post-filter по этому списку. Если после фильтра п�
 - 2026-05-13: EPIC 8 завершён — POST /api/ai/recommend (Gemini JSON mode),
   context builder с Redis-кэшем и версионированием, AiRequestLog с usage/cost,
   rate limit 10/час, hallucination guard через white list
+
+# apps/checkins/services/checkin.py
+# Допись в конец docs/PROJECT_DECISIONS.md ПЕРЕД секцией
+# "## История значимых решений":
+
+## EPIC 9 — Поинты и история
+
+### POINTS_BY_REASON приведён в соответствие с бизнес-планом §5.1
+До EPIC 9 в `POINTS_BY_REASON` были `SIGNUP=10` и `REFERRAL=20`, оба
+никогда не вызывались — мёртвые крючки. В бизнес-плане SIGNUP отсутствует
+вовсе, REFERRAL=25 (рефералка), но требует целой реферальной инфраструктуры
+(referral_code, referred_by, deep-link, антифрод) — это явно Этап 1
+(ТЗ §4.2.6). Вырезали обоих, оставили только то что реально вызывается:
+
+- `CHECKIN: 5` — каждый чек-ин
+- `FIRST_CHECKIN: 10` — первый чек-ин этого юзера в этом месте
+- `FRIEND_ADDED: 5` — принятие дружбы, обоим юзерам
+
+Когда вернёмся к рефералке/онбординг-бонусам — добавим обратно одной
+строкой + миграцией choices. Сейчас "крючки" сбивали с толку: выглядели
+как реализованные.
+
+### Семантика FIRST_CHECKIN изменена: личная, не социальная
+До EPIC 9 бонус начислялся за "первый чек-ин среди друзей этого юзера" —
+это уточнение к ТЗ 6.1 от EPIC 6, которое не совпадает с бизнес-планом §5.1
+("Первое посещение места: +10"). В бизнес-плане это **личный** бонус
+за разведку, без связи с друзьями.
+
+Новая логика: `EXISTS(CheckIn user=user, place=place)` до создания.
+Проще запрос (один индекс на (user, place) вместо JOIN'а через Friendship),
+проще тесты, совпадает с бизнес-планом. Социальный бонус "первый среди
+друзей" — отложен; может вернуться в Этап 1 как отдельный reason
+(например, `SOCIAL_DISCOVERY`), если будет нужен.
+
+Файл `apps/checkins/services/checkin.py` потерял зависимости на
+`Friendship`/`FriendshipStatus`/`Exists`/`OuterRef` — стало чище.
+
+### FRIEND_ADDED: ref_id=friendship.pk, без anti-abuse
+Decline + новая accept = новый Friendship с новым pk → новое начисление.
+Пара может "крутить" поинты добавлением-удалением. Это сознательная
+плата за простоту в pre-MVP — крутить смысла нет:
+- магазина наград нет
+- статусов и leaderboard'ов нет
+- сезонное обнуление в Этапе 1 всё равно обнулит накрученное
+
+В Этапе 1 (антифрод, сезонность) пересмотрим: либо переход на
+`ref_type='friendship_pair'` + ключ из (min(uid1,uid2), max(uid1,uid2)),
+либо учёт через отдельную таблицу "уже друзили когда-то".
+
+### Начисление и при counter-pending auto-accept в send_request
+Когда a отправляет заявку b, а от b → a уже pending, мы автоматически
+переводим в accepted в `send_request`. Долгое время после EPIC 3 здесь
+стоял TODO(EPIC 9). В EPIC 9 подключили `_award_friend_added(f, ...)`
+к обеим веткам (accept_request и counter-pending в send_request).
+
+### GET /api/users/me/points в apps.gamification, не apps.users
+Эндпоинт зарегистрирован в `apps.gamification.urls` (по доменной
+принадлежности view-логики). В URL-пути сохраняется ожидаемый
+`/api/users/me/points` — `path()` в apps.gamification.urls буквально
+прописывает префикс `users/me/`. Альтернатива (положить view в apps.users)
+тянула бы импорт PointsTransaction/PointsTransactionSerializer в users —
+не хочется.
+
+# В "## История значимых решений" допиши:
+- 2026-05-13: EPIC 9 завершён — POINTS_BY_REASON {CHECKIN, FIRST_CHECKIN,
+  FRIEND_ADDED}, SIGNUP/REFERRAL вырезаны, FIRST_CHECKIN на личной семантике,
+  FRIEND_ADDED на accept (включая counter-pending), GET /api/users/me/points
+  с cursor-пагинацией 50/стр.
