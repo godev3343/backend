@@ -636,3 +636,67 @@ preferences_validation.py`), не constraint в БД, т.к. PG не enforces ch
 - 2026-05-13: EPIC 8 prep — Place.city (default astana), User.preferred_vibes
   + ai_context, PUT /api/users/me/preferences, seed_places расширен под --city,
   fixtures/places_astana.json (50 мест)
+
+# Дописать в конец docs/PROJECT_DECISIONS.md ПЕРЕД секцией
+# "## История значимых решений":
+
+## EPIC 8 — AI «Куда пойти?»
+
+### Structured output через Gemini JSON mode, не текстовый парсинг
+`LLMClient.complete(response_schema=...)` инструктирует Gemini вернуть строго
+JSON по схеме (нативная фича `response_mime_type=application/json` +
+`response_schema`). Альтернатива (текстовый ответ + regex/JSON-парсинг) хрупкая:
+модель может обернуть JSON в markdown-блок, дописать пояснение перед, и т.д.
+JSON-mode исключает большую часть этих кейсов.
+
+Когда подключим Anthropic — там аналог через tool_use API, контракт `LLMClient`
+не меняется.
+
+### Hallucinated place_id — белый список из `valid_place_ids` контекста
+`build_context()` возвращает не только текст промпта, но и `frozenset[int]`
+с id всех мест, попавших в контекст. После парсинга ответа модели делаем
+post-filter по этому списку. Если после фильтра пусто — отдаём 502 с
+`ai_no_valid_places`, не выдумываем рекомендации.
+
+### `name` мест — из БД, не из ответа модели
+Даже если модель верно угадала id, доверять её version of `name` нельзя —
+может быть с опечаткой, переводом, обрезанием. После фильтра id берём
+свежие name через один запрос `Place.objects.filter(pk__in=ids).values_list`.
+
+### Контекст-кэш через версионирование, не TTL-only
+По аналогии с EPIC 5 (places list cache). Ключ
+`ai:context:{city}:v{vibes_version}`. Сигналы на `PlaceVibe` и `Place`
+инкрементят `ai:vibes_version` в Redis — старые ключи мгновенно
+становятся неактуальными, TTL 30 мин просто их зачищает.
+
+Альтернатива (TTL 30 мин без версионирования) даёт окно до 30 мин с
+устаревшим контекстом после правки админом. Для AI-рекомендаций неприемлемо —
+админ убрал место с карты, а AI продолжает его рекомендовать.
+
+### `AiRequestStatus` — храним ВСЕ запросы, успех и ошибки
+Лог всегда пишется: и при `LLMError` от провайдера, и при невалидном JSON,
+и когда все id hallucinated. Это критично для дебага "AI у меня сегодня
+не работает" и контроля биллинга (платим за input даже когда ответ невалидный).
+
+`response_summary` — только id + reasoning, не полный ответ модели. На случай
+жалобы "AI порекомендовал чушь" этого хватает; полные ответы и контекст-блоки
+не храним, иначе таблица разрастётся.
+
+### Async-сервис, sync-view через async_to_sync
+`recommend()` написан async — это оправдано: LLM-вызов 1-5 секунд, в async-стеке
+один воркер обработает много параллельных запросов без блокировки. Но DRF view
+остаётся sync (Django ASGI добавит сложность миграции, а выгода появится только
+когда `/api/ai/recommend` станет горячим эндпоинтом).
+
+`async_to_sync` в view — один event loop на запрос, оверхед копеечный
+относительно 2-сек LLM-вызова.
+
+### Префиксы для config
+В `config/settings/base.py` нужно дописать:
+- `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["ai_recommend"] = "10/hour"`
+- `INSTALLED_APPS` уже содержит `apps.ai` (с EPIC 1 fixes 2026-05-11)
+
+# В "## История значимых решений" допиши:
+- 2026-05-13: EPIC 8 завершён — POST /api/ai/recommend (Gemini JSON mode),
+  context builder с Redis-кэшем и версионированием, AiRequestLog с usage/cost,
+  rate limit 10/час, hallucination guard через white list

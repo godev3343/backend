@@ -17,4 +17,5 @@ urlpatterns = [
     path("api/", include("apps.geocoding.urls", namespace="geocoding")),
     path("api/", include("apps.checkins.urls", namespace="checkins")),
     path("api/", include("apps.events.urls", namespace="events")),
+    path("api/", include("apps.ai.urls", namespace="ai")),
 ]

@@ -286,7 +286,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
-        "ai_recommend": "30/hour",
         "auth_login": "5/min",
         "auth_register": "5/min",
         "email_verify_request": "5/hour",
@@ -296,6 +295,7 @@ REST_FRAMEWORK = {
         "user_search": "60/hour",
         "upload_presign": "60/hour",
         "upload_confirm": "120/hour",
+        "ai_recommend": "10/hour",
     "geocode": "60/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",

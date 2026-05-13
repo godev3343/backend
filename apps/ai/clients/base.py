@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,11 @@ class LLMClient(Protocol):
     Реализации:
       - apps/ai/clients/gemini.py
       - apps/ai/clients/anthropic.py (позже)
+
+    response_schema: JSON-схема для structured output. Если задана,
+    клиент инструктирует модель отвечать строго в JSON по этой схеме.
+    Текст ответа в LLMResponse.text — валидный JSON.
+    Без response_schema — свободный текст.
     """
 
     async def complete(
@@ -41,6 +46,7 @@ class LLMClient(Protocol):
         messages: list[LLMMessage],
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_schema: dict[str, Any] | None = None,
     ) -> LLMResponse:
         """Сгенерировать ответ. Бросает LLMError при ошибке."""
         ...
@@ -49,7 +55,9 @@ class LLMClient(Protocol):
 class LLMError(Exception):
     """Любая ошибка LLM-провайдера. Сервис ловит и решает что показать юзеру."""
 
-    def __init__(self, message: str, *, provider: str, status_code: int | None = None) -> None:
+    def __init__(
+        self, message: str, *, provider: str, status_code: int | None = None
+    ) -> None:
         super().__init__(message)
         self.provider = provider
         self.status_code = status_code

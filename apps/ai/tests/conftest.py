@@ -1,9 +1,11 @@
 """
-Локальные фикстуры для places-тестов.
+Локальные фикстуры для AI-тестов.
 
-api_client / authed_client — DRF-клиенты.
-_clear_cache (autouse) — список мест версионируется через Redis cache;
-без сброса между тестами один тест увидит результат другого через cache hit.
+_clear_cache (autouse) — в cache живут:
+- AI-context кэш (ai:context:{city}:v{N}) и счётчик ai:vibes_version
+- DRF throttle counters (AiRecommendThrottle, 10/час)
+Без сброса тесты на endpoint флакают после ~10 прогонов, а тесты
+context builder начинают видеть результаты соседних тестов через cache hit.
 """
 from __future__ import annotations
 
@@ -50,3 +52,19 @@ def authed_client(api_client: APIClient, user: "AbstractUser") -> APIClient:
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
     return api_client
 
+
+@pytest.fixture
+def onboarded_user(user_factory: Callable[..., "AbstractUser"]) -> "AbstractUser":
+    """Юзер с заполненным display_name и consent_at — проходит IsOnboarded."""
+    from django.utils.timezone import now
+
+    return user_factory(display_name="Tester", consent_at=now())
+
+
+@pytest.fixture
+def onboarded_client(
+    api_client: APIClient, onboarded_user: "AbstractUser"
+) -> APIClient:
+    refresh = RefreshToken.for_user(onboarded_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+    return api_client
