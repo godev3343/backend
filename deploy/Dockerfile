@@ -1,3 +1,5 @@
+# deploy/Dockerfile
+
 # ---------- builder ----------
 FROM python:3.12-slim AS builder
 
@@ -6,11 +8,12 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1
 
+# Только то что реально нужно для uv sync на готовых wheels.
+# build-essential выкинут — все наши deps есть как wheels.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev curl ca-certificates \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# uv
 COPY --from=ghcr.io/astral-sh/uv:0.5.4 /uv /usr/local/bin/uv
 
 WORKDIR /app
@@ -25,8 +28,9 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings.prod
 
+# Runtime-only: libpq5 для psycopg, GDAL/PROJ для GeoDjango
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 gdal-bin libgdal32 binutils libproj-dev \
+    libpq5 gdal-bin libgdal32 binutils libproj25 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 
