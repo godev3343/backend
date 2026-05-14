@@ -121,7 +121,6 @@ yarn-error.log*
 *.dump
 dumps/
 backups/
-fixtures/local/
 .tmp/
 tmp/
 
