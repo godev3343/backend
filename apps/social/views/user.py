@@ -77,22 +77,7 @@ def _user_me_with_counts(user_id: int):  # type: ignore[no-untyped-def]
 
 def _serialize_me(user) -> dict:  # type: ignore[no-untyped-def]
     """Собирает payload для UserMeSerializer из User с аннотациями."""
-    return UserMeSerializer(
-        {
-            "id": user.pk,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "display_name": user.display_name,
-            "avatar_url": user.avatar_url,
-            "bio": user.bio,
-            "points": user.points,
-            "is_email_verified": user.is_email_verified,
-            "is_onboarded": user.is_onboarded,
-            "friends_count": user.friends_count,
-            "checkins_count": user.checkins_count,
-        }
-    ).data
+    return UserMeSerializer(user).data
 
 
 class UserMeView(APIView):

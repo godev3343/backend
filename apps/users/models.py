@@ -124,5 +124,5 @@ class User(AbstractBaseUser, PermissionsMixin):
         `.select_related('avatar_asset')`, иначе N+1.
         """
         if self.avatar_asset_id is None:
-            return None
+            return ""
         return self.avatar_asset.url_feed

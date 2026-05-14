@@ -9,9 +9,11 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from drf_spectacular.plumbing import get_lib_doc_excludes as _default_lib_doc_excludes
+from corsheaders.defaults import default_headers
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+CORS_ALLOW_HEADERS = (*default_headers, "x-retry")
 
 
 class AppSettings(BaseSettings):
