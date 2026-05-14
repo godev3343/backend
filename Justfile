@@ -36,6 +36,10 @@ start:
     @uv run celery -A config beat -l info > .runtime/beat.log 2>&1 & echo $! > .runtime/beat.pid
     @echo "✅ Поднято. Логи: just logs <web|worker|beat>. Стоп: just stop"
 
+# Запустить стек с реальной отправкой email через SMTP
+start-smtp:
+    @DJANGO_EMAIL_REAL=true just start
+
 # Остановить все процессы (web, worker, beat) и docker
 stop:
     @echo "🛑 Останавливаю процессы..."
