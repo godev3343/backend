@@ -30,3 +30,12 @@ if env.sentry_dsn:
         profiles_sample_rate=0,
         send_default_pii=False,
     )
+
+
+_railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN")
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.up.railway.app",
+    "https://*.railway.app",
+]
+if _railway_domain:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_railway_domain}")

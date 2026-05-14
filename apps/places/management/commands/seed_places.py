@@ -32,7 +32,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--file",
             type=str,
-            default="fixtures/places_astana.json",
+            default="fixtures/places.json",
             help="Путь к JSON-фикстуре относительно BASE_DIR",
         )
         parser.add_argument(
