@@ -37,6 +37,15 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app . .
 
+# Создать staticfiles с правильными правами
+RUN mkdir -p /app/staticfiles && chown -R app:app /app/staticfiles
+
+RUN chmod +x deploy/entrypoint.sh
+
+USER app
+EXPOSE 8000
+COPY --chown=app:app . .
+
 RUN chmod +x deploy/entrypoint.sh
 
 USER app
