@@ -2,6 +2,7 @@
 """Production."""
 
 import sentry_sdk
+import os
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
