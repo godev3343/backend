@@ -17,6 +17,9 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+GDAL_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu/libgdal.so.36"
+GEOS_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu/libgeos_c.so.1"
+
 
 if env.sentry_dsn:
     sentry_sdk.init(
