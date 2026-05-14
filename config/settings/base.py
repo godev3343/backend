@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from drf_spectacular.plumbing import get_lib_doc_excludes as _default_lib_doc_excludes
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -346,7 +348,7 @@ SPECTACULAR_SETTINGS = {
     ],
     "PREPROCESSING_HOOKS": ["apps.core.openapi.assign_tag_by_app"],
     # Авто-описания операций из docstring view-методов (`def post(self, ...)`)
-    "GET_LIB_DOC_EXCLUDES": [],
+    "GET_LIB_DOC_EXCLUDES": _default_lib_doc_excludes,
     # Разделить request/response schemas в компонентах (иначе один Place
     # компонент с required-полями только для read-полей)
     "COMPONENT_SPLIT_REQUEST": True,
