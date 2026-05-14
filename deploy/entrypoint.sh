@@ -15,7 +15,8 @@ case "${1:-web}" in
       --error-logfile -
     ;;
   worker)
-    exec celery -A config worker -l info -Q default,media,ai
+    exec celery -A config worker -l info -Q default,media,ai \
+      --concurrency=${CELERY_CONCURRENCY:-2}
     ;;
   beat)
     exec celery -A config beat -l info \
