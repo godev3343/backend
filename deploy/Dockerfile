@@ -28,11 +28,10 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings.prod
 
-# Runtime-only: libpq5 для psycopg, GDAL/PROJ для GeoDjango
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 gdal-bin libgdal36 binutils libproj25 \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app \
+    && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 
 WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
