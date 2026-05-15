@@ -125,8 +125,8 @@ reset-db:
 # --- Tests / quality ---
 
 # Запустить тесты (можно с аргументами: just test apps/users)
-test:
-    DJANGO_SETTINGS_MODULE=config.settings.test uv run pytest
+test *args:
+    uv run pytest {{args}}
 
 # Тесты с HTML coverage report
 test-cov:
@@ -155,6 +155,10 @@ check-all: lint test
 seed:
     uv run python manage.py seed_places
     uv run python manage.py seed_events
+    uv run python manage.py seed_achievements
+
+seed-achievements:
+    uv run python manage.py seed_achievements
 
 # --- Docker ---
 

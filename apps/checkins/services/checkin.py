@@ -37,6 +37,7 @@ from apps.checkins.services.exceptions import (
 from apps.gamification.models import PointsReason
 from apps.gamification.services import PointsService
 from apps.places.models import Place, PlacePhoto
+from apps.gamification.services.achievements import AchievementService
 
 if TYPE_CHECKING:
     from apps.users.models import User as UserType
@@ -114,6 +115,8 @@ class CheckInService:
                 ref_type="checkin",
                 ref_id=checkin.pk,
             )
+
+        AchievementService.check_for_user(user=user, trigger="checkin")
 
         return checkin
 

@@ -26,6 +26,7 @@ from django.db.models import F
 
 from apps.checkins.models import CheckIn, Like
 from apps.checkins.services.exceptions import CheckInNotFound
+from apps.gamification.services.achievements import AchievementService
 
 if TYPE_CHECKING:
     from apps.users.models import User as UserType
@@ -67,6 +68,16 @@ class LikeService:
 
         # Инкремент счётчика — F() избегает гонки на параллельных лайках.
         CheckIn.objects.filter(pk=checkin_id).update(likes_count=F("likes_count") + 1)
+        checkin_author_id = CheckIn.objects.filter(pk=checkin_id).values_list(
+            "user_id", flat=True
+        ).first()
+        if checkin_author_id is not None:
+            from apps.users.models import User
+            author = User.objects.filter(pk=checkin_author_id).first()
+            if author is not None:
+                AchievementService.check_for_user(
+                    user=author, trigger="like_received"
+                )
         return LikeResult.CREATED
 
     @classmethod

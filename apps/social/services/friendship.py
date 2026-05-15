@@ -27,6 +27,7 @@ from django.db.models import Q
 from apps.gamification.models import PointsReason
 from apps.gamification.services import PointsService
 from apps.social.models import Friendship, FriendshipStatus
+from apps.gamification.services.achievements import AchievementService
 from apps.social.services.exceptions import (
     AlreadyFriends,
     FriendshipExists,
@@ -97,6 +98,8 @@ class FriendshipService:
                 f.status = FriendshipStatus.ACCEPTED
                 f.save(update_fields=["status"])
                 cls._award_friend_added(f, from_user=from_user, to_user=to_user)
+                AchievementService.check_for_user(user=from_user, trigger="friendship_accepted")
+                AchievementService.check_for_user(user=to_user, trigger="friendship_accepted")
                 return f
 
         try:

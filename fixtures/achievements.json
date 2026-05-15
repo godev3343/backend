@@ -1,0 +1,34 @@
+{
+  "achievements": [
+    {
+      "code": "pioneer",
+      "name_ru": "Первооткрыватель",
+      "description_ru": "Чек-ин в 5 разных местах",
+      "order": 10
+    },
+    {
+      "code": "critic",
+      "name_ru": "Ресторанный критик",
+      "description_ru": "15 отзывов с фото",
+      "order": 20
+    },
+    {
+      "code": "night_watch",
+      "name_ru": "Ночной дозор",
+      "description_ru": "10 чек-инов после 00:00",
+      "order": 30
+    },
+    {
+      "code": "social_butterfly",
+      "name_ru": "Душа компании",
+      "description_ru": "5 принятых заявок в друзья",
+      "order": 40
+    },
+    {
+      "code": "paparazzi",
+      "name_ru": "Папарацци",
+      "description_ru": "50 фото-чек-инов, набравших 100+ лайков",
+      "order": 50
+    }
+  ]
+}
