@@ -27,7 +27,7 @@ class UserPublicSerializer(serializers.Serializer):
     def get_status(self, obj: dict) -> dict:
         # obj — словарь с предсобранным payload в _serialize_me;
         # points там уже есть
-        return UserStatusSerializer.for_points(obj["points"])
+        return UserStatusSerializer.for_points(obj.points)
 
 
 class UserSearchResultSerializer(serializers.Serializer):
