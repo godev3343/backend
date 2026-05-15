@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from rest_framework import serializers
+from apps.gamification.serializers.status import UserStatusSerializer
 
 from apps.social.serializers.preferences_validation import validate_preferred_vibes
 
@@ -36,6 +37,12 @@ class UserMeSerializer(serializers.Serializer):
     # AI-персонализация (EPIC 8)
     preferred_vibes = serializers.ListField(child=serializers.CharField(), allow_empty=True)
     ai_context = serializers.CharField(allow_blank=True)
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj: dict) -> dict:
+        # obj — словарь с предсобранным payload в _serialize_me;
+        # points там уже есть
+        return UserStatusSerializer.for_points(obj["points"])
 
 
 class UserMeUpdateSerializer(serializers.Serializer):

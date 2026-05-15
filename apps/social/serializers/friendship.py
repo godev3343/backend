@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rest_framework import serializers
+from apps.gamification.serializers.status import UserStatusSerializer
 
 
 class _UserBriefSerializer(serializers.Serializer):
@@ -45,3 +46,9 @@ class FriendListItemSerializer(serializers.Serializer):
     avatar_url = serializers.URLField(allow_blank=True, allow_null=True)
     bio = serializers.CharField(allow_blank=True)
     points = serializers.IntegerField()
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj: dict) -> dict:
+        # obj — словарь с предсобранным payload в _serialize_me;
+        # points там уже есть
+        return UserStatusSerializer.for_points(obj["points"])
