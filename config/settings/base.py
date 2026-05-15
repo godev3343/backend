@@ -47,6 +47,7 @@ class AppSettings(BaseSettings):
     upload_max_size_avatar: int = 5 * 1024 * 1024
     upload_max_size_checkin: int = 20 * 1024 * 1024
     upload_max_size_place: int = 20 * 1024 * 1024
+    upload_max_size_review: int = 20 * 1024 * 1024
     upload_presign_ttl: int = 300
     media_min_short_side: int = 400
 
@@ -176,6 +177,7 @@ INSTALLED_APPS = [
     "apps.media",
     "apps.ai",
     "apps.geocoding",
+    "apps.reviews",
 ]
 
 AUTH_USER_MODEL = "users.User"

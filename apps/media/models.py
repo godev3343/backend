@@ -29,6 +29,7 @@ class MediaPurpose(models.TextChoices):
     AVATAR = "avatar", "Avatar"
     CHECKIN = "checkin", "Check-in photo"
     PLACE = "place", "Place photo"
+    REVIEW = "review", "Review"
 
 
 class MediaStatus(models.TextChoices):

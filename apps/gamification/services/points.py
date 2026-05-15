@@ -30,6 +30,7 @@ POINTS_BY_REASON: dict[str, int] = {
     PointsReason.CHECKIN: 5,
     PointsReason.FIRST_CHECKIN: 10,
     PointsReason.FRIEND_ADDED: 5,
+    PointsReason.REVIEW_POSTED: 10,
 }
 
 
