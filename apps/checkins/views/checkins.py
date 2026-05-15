@@ -19,7 +19,12 @@ from apps.checkins.serializers import (
 )
 from apps.checkins.services import CheckInService
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class CheckInCreateView(GenericAPIView):
     """
     POST /api/checkins
@@ -57,6 +62,7 @@ class CheckInCreateView(GenericAPIView):
         return Response(output, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class MyCheckInsView(ListAPIView):
     """
     GET /api/checkins/me — история своих чек-инов с cursor-пагинацией.
@@ -71,6 +77,8 @@ class MyCheckInsView(ListAPIView):
     serializer_class = CheckInSerializer
 
     def get_queryset(self):  # type: ignore[no-untyped-def]
+        if getattr(self, "swagger_fake_view", False):
+            return CheckIn.objects.none()  # type: ignore[no-untyped-def]
         return (
             CheckIn.objects.filter(user=self.request.user)
             .select_related("user", "user__avatar_asset", "place")

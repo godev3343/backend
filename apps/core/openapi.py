@@ -1,71 +1,83 @@
-"""
-drf-spectacular preprocessing hook: автоматически проставляет OpenAPI tag
-по Django app_label view-класса, чтобы не обвешивать каждую view декоратором.
-
-Маппинг прост:
-  apps.users (path /api/auth/*)  → "auth"
-  apps.users (всё остальное)     → "users"
-  apps.<other>                    → "<other>"
-  /health, /ready                 → "system"
-
-Когда добавляется новый app — он автоматом получает тег по своему имени.
-Если нужен другой тег для конкретной view — поставить @extend_schema(tags=[...]),
-этот hook его не перетрёт.
-"""
-
-from __future__ import annotations
-
+# apps/core/openapi.py
+import sys
 from typing import Any
 
-# Apps, для которых имя app != имя тега. Сейчас один кейс — users разделяется
-# на auth-эндпоинты (по path) и остальные. Можно расширять.
-_SPECIAL_PATH_TAGS: dict[str, str] = {
+URL_PREFIX_TO_TAG: dict[str, str] = {
+    # Auth — всё под /api/auth/
     "/api/auth/": "auth",
+
+    # Users — профиль, онбординг
+    "/api/users/me/points": "gamification",  # этот раньше, чтобы матчился до /api/users/
+    "/api/users/me/preferences": "social",  # preferences живёт в social app
+    "/api/users/": "users",
+
+    # Social — друзья, поиск
+    "/api/friends/": "social",
+    "/api/friends": "social",  # без / на конце — для коллекций
+
+    # Media — загрузка
+    "/api/upload/": "media",
+    "/api/media/": "media",
+
+    # Places
+    "/api/places/": "places",
+
+    # Geocoding
+    "/api/geocode/": "geocoding",
+
+    # Checkins + лента
+    "/api/checkins/": "checkins",
+    "/api/feed/": "checkins",
+
+    # Events
+    "/api/events/": "events",
+
+    # AI
+    "/api/ai/": "ai",
+
+    # System
+    "/api/schema/": "system",
+    "/health/": "system",
+    "/ready/": "system",
+}
+
+# Дефолтные теги от spectacular — первый сегмент пути после /api/
+DEFAULT_TAGS_TO_OVERRIDE = {
+    "api", "health", "ready",
+    "users", "social", "media", "places", "geocode", "geocoding",
+    "checkins", "events", "ai", "gamification", "auth",
+    "friends", "upload", "feed", "schema",
 }
 
 
-def _tag_for(path: str, app_label: str | None) -> str:
-    # Path-based override (для auth внутри apps.users)
-    for prefix, tag in _SPECIAL_PATH_TAGS.items():
+def assign_tag_by_path(result: dict[str, Any], generator: Any, request: Any, public: bool) -> dict[str, Any]:
+    """
+    Postprocessing hook: проставляет tags каждой операции по URL prefix.
+    Перетирает дефолтные теги от spectacular, но сохраняет явно заданные через @extend_schema.
+    """
+    with open("/tmp/hook_called.txt", "a") as f:
+        f.write(f"called, paths={len(result.get('paths', {}))}\n")
+    paths = result.get("paths", {})
+    for path, methods in paths.items():
+        tag = _resolve_tag(path)
+        if tag is None:
+            continue
+
+        for method, operation in methods.items():
+            if method not in {"get", "post", "put", "patch", "delete", "head", "options"}:
+                continue
+
+            existing_tags = operation.get("tags", [])
+            # Перетираем если: тегов нет, ИЛИ все теги — дефолтные (из URL)
+            if not existing_tags or all(t in DEFAULT_TAGS_TO_OVERRIDE for t in existing_tags):
+                operation["tags"] = [tag]
+
+    return result
+
+
+def _resolve_tag(path: str) -> str | None:
+    # Сортируем по длине префикса убывая — чтобы /api/users/me/points матчился раньше /api/users/
+    for prefix in sorted(URL_PREFIX_TO_TAG, key=len, reverse=True):
         if path.startswith(prefix):
-            return tag
-
-    # System endpoints без app
-    if path.startswith("/health") or path.startswith("/ready"):
-        return "system"
-    if path.startswith("/api/schema") or path.startswith("/api/docs"):
-        return "system"
-
-    # Default: app_label или fallback
-    return app_label or "system"
-
-
-def assign_tag_by_app(
-    endpoints: list[tuple[str, str, str, Any]],
-    **kwargs: Any,
-) -> list[tuple[str, str, str, Any]]:
-    """
-    Preprocessing hook drf-spectacular.
-
-    На каждый endpoint смотрим app_label view-класса (через __module__).
-    Уважаем @extend_schema(tags=[...]) — не перетираем явные теги.
-    """
-    for path, _path_regex, _method, callback in endpoints:
-        view = getattr(callback, "cls", None)
-        if view is None:
-            continue
-        if getattr(view, "_spectacular_autotag_done", False):
-            continue
-
-        # apps.users.views.register.RegisterView → "users"
-        module = getattr(view, "__module__", "") or ""
-        app_label: str | None = None
-        if module.startswith("apps."):
-            # apps.users.views.X → ["apps", "users", ...]
-            app_label = module.split(".")[1]
-
-        tag = _tag_for(path, app_label)
-        view.tags = [tag]
-        view._spectacular_autotag_done = True
-
-    return endpoints
+            return URL_PREFIX_TO_TAG[prefix]
+    return None

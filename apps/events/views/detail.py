@@ -2,25 +2,29 @@
 
 from __future__ import annotations
 
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny
-from rest_framework.request import Request
-from rest_framework.response import Response
 
-from apps.events.models import Event
 from apps.events.serializers import EventDetailSerializer
 from apps.events.services.exceptions import EventNotFound
 from apps.events.services.query import build_detail_queryset
 
+from drf_spectacular.utils import extend_schema
 
-class EventDetailView(GenericAPIView):
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+class EventDetailView(RetrieveAPIView):
     permission_classes = (AllowAny,)
     serializer_class = EventDetailSerializer
 
-    def get(self, request: Request, pk: int) -> Response:
-        try:
-            event = build_detail_queryset().get(pk=pk)
-        except Event.DoesNotExist as e:
-            raise EventNotFound() from e
+    def get_queryset(self):
+        return build_detail_queryset()
 
-        return Response(self.serializer_class(event).data)
+    def get_object(self):
+        queryset = self.get_queryset()
+        try:
+            return queryset.get(pk=self.kwargs["pk"])
+        except queryset.model.DoesNotExist as e:
+            raise EventNotFound() from e

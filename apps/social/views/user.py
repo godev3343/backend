@@ -34,6 +34,10 @@ from apps.social.services import annotate_friendship_status
 from apps.social.throttling import UserSearchThrottle
 from apps.users.permissions import IsOnboarded
 
+from drf_spectacular.utils import extend_schema
+
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
 User = get_user_model()
 
 # Поля, которые юзер может обновлять через PATCH /me.
@@ -80,6 +84,7 @@ def _serialize_me(user) -> dict:  # type: ignore[no-untyped-def]
     return UserMeSerializer(user).data
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class UserMeView(APIView):
     """GET и PATCH /api/users/me."""
 
@@ -109,6 +114,7 @@ class UserMeView(APIView):
         return Response(_serialize_me(user), status=status.HTTP_200_OK)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class UserPublicView(APIView):
     """GET /api/users/{id} — публичный профиль другого юзера."""
 
@@ -141,6 +147,7 @@ class UserPublicView(APIView):
         return Response(UserPublicSerializer(user).data, status=status.HTTP_200_OK)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class UserSearchView(GenericAPIView):
     """
     GET /api/users/search?q=...&limit=&offset=

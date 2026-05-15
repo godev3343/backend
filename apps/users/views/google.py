@@ -15,7 +15,12 @@ from apps.users.serializers import (
 from apps.users.services import GoogleAuthService
 from apps.users.throttling import GoogleAuthRateThrottle
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [GoogleAuthRateThrottle]

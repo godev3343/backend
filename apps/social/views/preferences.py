@@ -16,7 +16,12 @@ from rest_framework.views import APIView
 
 from apps.social.serializers import UserPreferencesSerializer
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class UserPreferencesView(APIView):
     """PUT /api/users/me/preferences."""
 

@@ -9,10 +9,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.serializers import HealthSerializer, ReadinessSerializer
+
 
 class HealthView(APIView):
     """Liveness — приложение запущено и отвечает."""
 
+    serializer_class = HealthSerializer
     permission_classes = (AllowAny,)
     authentication_classes = ()
 
@@ -26,6 +29,7 @@ class ReadinessView(APIView):
     Используется балансировщиком: если возвращает 503, трафик не пускается.
     """
 
+    serializer_class = ReadinessSerializer
     permission_classes = (AllowAny,)
     authentication_classes = ()
 

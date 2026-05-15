@@ -15,7 +15,12 @@ from apps.users.serializers import (
 from apps.users.services import AuthService
 from apps.users.throttling import PasswordResetRequestThrottle
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetRequestThrottle]
@@ -30,6 +35,7 @@ class PasswordResetRequestView(APIView):
         )
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
 

@@ -12,7 +12,12 @@ from rest_framework.views import APIView
 
 from apps.users.serializers import OnboardingRequestSerializer, UserMeSerializer
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class OnboardingView(APIView):
     """
     POST /api/users/me/onboarding — заполнить display_name, avatar_url, bio,

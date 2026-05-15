@@ -348,7 +348,10 @@ SPECTACULAR_SETTINGS = {
         {"name": "gamification", "description": "Поинты и история транзакций"},
         {"name": "system", "description": "Health/readiness probes, схема API"},
     ],
-    "PREPROCESSING_HOOKS": ["apps.core.openapi.assign_tag_by_app"],
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "apps.core.openapi.assign_tag_by_path",
+    ],
     # Авто-описания операций из docstring view-методов (`def post(self, ...)`)
     "GET_LIB_DOC_EXCLUDES": _default_lib_doc_excludes,
     # Разделить request/response schemas в компонентах (иначе один Place

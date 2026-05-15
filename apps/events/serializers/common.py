@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from apps.events.models import Event
 
@@ -18,7 +19,9 @@ class PlaceBriefSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
 
-
+@extend_schema_field({"type": "object", "properties": {
+    "lat": {"type": "number"}, "lng": {"type": "number"}
+}})
 class LocationField(serializers.Field):
     """
     PointField → {"lat": float, "lng": float} | null.

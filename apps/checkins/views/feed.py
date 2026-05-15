@@ -21,10 +21,15 @@ from apps.checkins.pagination import CheckInCursorPagination
 from apps.checkins.serializers import CheckInSerializer
 from apps.social.models import Friendship, FriendshipStatus
 
+from drf_spectacular.utils import extend_schema
+
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
 if TYPE_CHECKING:
     from rest_framework.request import Request
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FeedView(ListAPIView):
     """GET /api/feed?cursor=...&limit=20"""
 

@@ -9,7 +9,12 @@ from apps.gamification.models import PointsTransaction
 from apps.gamification.pagination import PointsHistoryCursorPagination
 from apps.gamification.serializers import PointsTransactionSerializer
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class MyPointsHistoryView(ListAPIView):
     """
     GET /api/users/me/points
@@ -26,6 +31,8 @@ class MyPointsHistoryView(ListAPIView):
     serializer_class = PointsTransactionSerializer
 
     def get_queryset(self):  # type: ignore[no-untyped-def]
+        if getattr(self, "swagger_fake_view", False):
+            return PointsTransaction.objects.none()
         return PointsTransaction.objects.filter(user=self.request.user).order_by(
             "-created_at", "-id"
         )

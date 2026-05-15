@@ -16,7 +16,12 @@ from apps.users.serializers import (
 from apps.users.services import AuthService
 from apps.users.throttling import LoginRateThrottle, RegisterRateThrottle
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [RegisterRateThrottle]
@@ -33,6 +38,7 @@ class RegisterView(APIView):
         )
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]

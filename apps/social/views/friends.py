@@ -33,9 +33,14 @@ from apps.social.services import FriendshipService
 from apps.social.throttling import FriendRequestThrottle
 from apps.users.permissions import IsEmailVerified, IsOnboarded
 
+from drf_spectacular.utils import extend_schema
+
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
 _PROTECTED = [IsAuthenticated, IsEmailVerified, IsOnboarded]
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendRequestCreateView(APIView):
     """POST /api/friends/requests — отправить заявку."""
 
@@ -58,6 +63,7 @@ class FriendRequestCreateView(APIView):
         )
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class IncomingFriendRequestsView(GenericAPIView):
     """GET /api/friends/requests/incoming — pending где я to_user."""
 
@@ -83,6 +89,7 @@ class IncomingFriendRequestsView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class OutgoingFriendRequestsView(GenericAPIView):
     """GET /api/friends/requests/outgoing — pending где я from_user."""
 
@@ -106,6 +113,7 @@ class OutgoingFriendRequestsView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendRequestAcceptView(APIView):
     """POST /api/friends/requests/{id}/accept."""
 
@@ -116,6 +124,7 @@ class FriendRequestAcceptView(APIView):
         return Response({"id": f.pk, "status": f.status}, status=status.HTTP_200_OK)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendRequestDeclineView(APIView):
     """POST /api/friends/requests/{id}/decline — hard delete."""
 
@@ -126,6 +135,7 @@ class FriendRequestDeclineView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendRequestCancelView(APIView):
     """DELETE /api/friends/requests/{id} — отменить свою исходящую."""
 
@@ -136,6 +146,7 @@ class FriendRequestCancelView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendListView(GenericAPIView):
     """GET /api/friends — список друзей."""
 
@@ -151,6 +162,7 @@ class FriendListView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class FriendRemoveView(APIView):
     """DELETE /api/friends/{user_id} — удалить из друзей."""
 

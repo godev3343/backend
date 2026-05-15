@@ -6,10 +6,17 @@ class CoreConfig(AppConfig):
     name = "apps.core"
     label = "core"
 
-
     def ready(self) -> None:
-        # DRF's api_settings закешировался до полной загрузки settings.REST_FRAMEWORK
-        # (drf_spectacular или рендереры дёрнули его рано). Форсируем перечитывание,
-        # иначе DEFAULT_SCHEMA_CLASS и прочие наши overrides не подхватятся.
+        from django.conf import settings
         from rest_framework.settings import api_settings
         api_settings.reload()
+
+        # Spectacular settings ломаются из-за бага в наследовании от APISettings:
+        # после reload() property user_settings берёт REST_FRAMEWORK, а не SPECTACULAR_SETTINGS.
+        # Принудительно ставим правильный _user_settings.
+        from drf_spectacular.settings import spectacular_settings
+        spectacular_settings._user_settings = getattr(settings, "SPECTACULAR_SETTINGS", {})
+        # Сбросить кэш чтобы при следующем обращении атрибуты пересчитались из user_settings
+        for attr in list(spectacular_settings._cached_attrs):
+            delattr(spectacular_settings, attr)
+        spectacular_settings._cached_attrs.clear()

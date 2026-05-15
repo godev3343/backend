@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -29,8 +29,13 @@ from apps.places.services.cache import (
 )
 from apps.places.services.query import build_list_queryset
 
+from drf_spectacular.utils import extend_schema
 
-class PlaceListView(GenericAPIView):
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+class PlaceListView(ListAPIView):
     """
     GET /api/places?bbox=lng_min,lat_min,lng_max,lat_max&vibe=calm,active&category=cafe&limit=200
 
@@ -38,10 +43,13 @@ class PlaceListView(GenericAPIView):
     Возвращает максимум 500 мест (см. filters.MAX_LIMIT).
     """
 
+    serializer_class = PlaceListItemSerializer
     permission_classes = (AllowAny,)
     pagination_class = None  # маркеры карты — без пагинации, отдаём всё в bbox
 
-    def get(self, request: Request) -> Response:
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        # Полный override list(): у нас нестандартный pipeline с кэшем
+        # и preload thumb-ассетов, который не ложится в дефолтный list().
         query = parse_list_query(
             bbox_raw=request.query_params.get("bbox"),
             vibe_raw=request.query_params.get("vibe"),
@@ -64,7 +72,7 @@ class PlaceListView(GenericAPIView):
             {a.id: a for a in MediaAsset.objects.filter(id__in=thumb_ids)} if thumb_ids else {}
         )
 
-        serializer = PlaceListItemSerializer(
+        serializer = self.get_serializer(
             places,
             many=True,
             context={"thumb_assets_by_id": thumb_assets_map},
@@ -73,3 +81,11 @@ class PlaceListView(GenericAPIView):
 
         set_cached_list(cache_key, payload)
         return Response(payload)
+
+    def get_queryset(self):
+        # Нужен для spectacular и базового класса; реально не используется,
+        # потому что list() переопределён полностью.
+        if getattr(self, "swagger_fake_view", False):
+            from apps.places.models import Place
+            return Place.objects.none()
+        return build_list_queryset(parse_list_query())  # fallback

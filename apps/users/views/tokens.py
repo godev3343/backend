@@ -13,13 +13,19 @@ from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTRefreshV
 
 from apps.users.serializers import LogoutRequestSerializer
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class TokenRefreshView(SimpleJWTRefreshView):
     """Стандартный SimpleJWT view — указан явно для документации."""
 
     permission_classes = [AllowAny]
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 

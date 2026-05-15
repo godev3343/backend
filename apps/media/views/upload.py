@@ -27,7 +27,12 @@ from apps.media.services.exceptions import MediaAssetNotFound
 from apps.media.services.upload import UploadService
 from apps.users.permissions import IsEmailVerified
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class PresignView(APIView):
     """
     POST /api/upload/presign
@@ -74,6 +79,7 @@ class PresignView(APIView):
         )
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class ConfirmView(APIView):
     """
     POST /api/upload/confirm
@@ -101,6 +107,7 @@ class ConfirmView(APIView):
         return Response(MediaAssetSerializer(asset).data, status=status.HTTP_200_OK)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class MediaAssetDetailView(APIView):
     """
     GET /api/media/{asset_id}

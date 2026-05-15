@@ -11,7 +11,12 @@ from rest_framework.views import APIView
 
 from apps.checkins.services import LikeResult, LikeService
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class CheckInLikeView(APIView):
     """
     POST /api/checkins/{id}/like:

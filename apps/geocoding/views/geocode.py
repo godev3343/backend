@@ -21,6 +21,10 @@ from apps.geocoding.serializers import GeocodeResultSerializer
 from apps.geocoding.services.exceptions import InvalidGeocodingQuery
 from apps.geocoding.services.geocoder import geocode
 
+from drf_spectacular.utils import extend_schema
+
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
 
 class GeocodeThrottle(UserRateThrottle):
     scope = "geocode"
@@ -53,6 +57,7 @@ def _parse_limit(raw: str | None, default: int = 5, max_value: int = 10) -> int:
     return min(value, max_value)
 
 
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class GeocodeView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     throttle_classes = (GeocodeThrottle,)

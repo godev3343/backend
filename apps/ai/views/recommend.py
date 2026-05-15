@@ -17,7 +17,12 @@ from apps.ai.services.recommend import recommend
 from apps.ai.throttling import AiRecommendThrottle
 from apps.users.permissions import IsOnboarded
 
+from drf_spectacular.utils import extend_schema
 
+from apps.core.serializers import DetailSerializer, EmptySerializer
+
+
+@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class AiRecommendView(APIView):
     """
     POST /api/ai/recommend
