@@ -17,6 +17,7 @@ from datetime import datetime
 
 from django.contrib.gis.geos import Polygon
 from django.db.models import Q, QuerySet
+from django.db.models import Count
 
 from apps.events.models import Event
 
@@ -33,6 +34,7 @@ def build_list_queryset(
     """
     qs = (
         Event.objects.select_related("place")
+        .annotate(attendees_count=Count("attendances", distinct=True))
         .filter(starts_at__lt=to)
         .filter(Q(ends_at__gt=from_) | Q(ends_at__isnull=True, starts_at__gte=from_))
         .order_by("starts_at", "id")

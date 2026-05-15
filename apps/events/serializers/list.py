@@ -22,3 +22,4 @@ class EventListItemSerializer(serializers.Serializer):
     cover_url = serializers.CharField()
     place = PlaceBriefSerializer(allow_null=True)
     location = LocationField()
+    attendees_count = serializers.IntegerField(read_only=True, default=0)

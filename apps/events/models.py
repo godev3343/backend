@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 
-from apps.core.models import TimestampedModel
+from apps.core.models import TimestampedModel, CreatedAtModel
 from apps.places.models import Place
 
 
@@ -68,3 +68,47 @@ class Event(TimestampedModel):
         if self.place_id and self.place.location is not None:
             self.location = self.place.location
         super().save(*args, **kwargs)
+
+
+class EventAttendance(CreatedAtModel):
+    """
+    "Иду" на событие. Без статусов: запись есть → юзер идёт, нет → не идёт.
+
+    На двойной POST полагаемся на UniqueConstraint + get_or_create:
+    повторный клик "иду" — no-op, не 409. DELETE без записи — тоже идемпотентно.
+    """
+
+    event = models.ForeignKey(
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="attendances",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="event_attendances",
+    )
+
+    class Meta:
+        db_table = "events_attendance"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("event", "user"),
+                name="attendance_unique_event_user",
+            ),
+        ]
+        indexes = [
+            # Счётчик "сколько идёт" + список участников события
+            models.Index(
+                fields=("event", "-created_at"),
+                name="attendance_event_created_idx",
+            ),
+            # "На какие события идёт юзер" — для будущих фич ("мои события")
+            models.Index(
+                fields=("user", "-created_at"),
+                name="attendance_user_created_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"attendance u={self.user_id} e={self.event_id}"

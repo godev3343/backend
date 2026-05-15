@@ -36,3 +36,9 @@ class EventNotFound(EventsError):
     default_message = "Event not found."
     default_code = "event_not_found"
     status_code = 404
+
+
+class AttendanceEventNotFound(EventsError):
+    default_message = "Event not found."
+    default_code = "event_not_found"
+    status_code = 404
