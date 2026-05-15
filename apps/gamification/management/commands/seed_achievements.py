@@ -23,7 +23,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--file",
-            default="fixtures/achievements.json",
+            default="/fixtures/achievements.json",
             help="Путь к fixture-файлу относительно BASE_DIR",
         )
 
