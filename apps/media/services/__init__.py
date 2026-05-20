@@ -1,11 +1,10 @@
-"""Реэкспорт публичного API services-слоя."""
-
 from apps.media.services.exceptions import (
     FileTooLarge,
     FileTooSmall,
     MediaAssetNotFound,
     MediaError,
     NotMediaOwner,
+    PurposeNotConfigured,
     SourceContentTypeMismatch,
     SourceNotUploaded,
     UnsupportedContentType,
@@ -18,6 +17,7 @@ __all__ = [
     "MediaAssetNotFound",
     "MediaError",
     "NotMediaOwner",
+    "PurposeNotConfigured",
     "SourceContentTypeMismatch",
     "SourceNotUploaded",
     "UnsupportedContentType",

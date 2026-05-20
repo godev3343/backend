@@ -108,10 +108,11 @@ R2_BUCKET = env.r2_bucket
 R2_ENDPOINT_URL = env.r2_endpoint_url
 R2_PUBLIC_URL = env.r2_public_url.rstrip("/")
 
-UPLOAD_MAX_SIZE = {
+UPLOAD_MAX_SIZE: dict[str, int] = {
     "avatar": env.upload_max_size_avatar,
     "checkin": env.upload_max_size_checkin,
     "place": env.upload_max_size_place,
+    "review": env.upload_max_size_review,
 }
 UPLOAD_PRESIGN_TTL = env.upload_presign_ttl
 MEDIA_MIN_SHORT_SIDE = env.media_min_short_side

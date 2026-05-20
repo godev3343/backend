@@ -17,6 +17,7 @@ from apps.media.services.exceptions import (
     SourceContentTypeMismatch,
     SourceNotUploaded,
     UnsupportedContentType,
+    PurposeNotConfigured,
 )
 from apps.media.services.upload import UploadService
 from apps.media.tests.factories import MediaAssetFactory
@@ -109,6 +110,36 @@ class TestPresign:
             content_length=size,
         )
         assert result.asset_id
+
+    def test_review_purpose_configured(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
+        """Регрессия: review должен быть в UPLOAD_MAX_SIZE."""
+        user = UserFactory()
+        result = UploadService.presign(
+            user=user,
+            purpose=MediaPurpose.REVIEW,
+            content_type="image/jpeg",
+            content_length=500_000,
+        )
+        asset = MediaAsset.objects.get(pk=result.asset_id)
+        assert asset.purpose == MediaPurpose.REVIEW
+        assert asset.key_original.startswith(f"reviews/{user.pk}/")
+
+    def test_unconfigured_purpose_raises_clear_error(
+            self, r2_mock, settings,
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Если purpose валиден в enum, но нет в UPLOAD_MAX_SIZE — PurposeNotConfigured, не UnsupportedContentType."""
+        # Симулируем сломанный конфиг: убираем review из словаря
+        settings.UPLOAD_MAX_SIZE = {
+            k: v for k, v in settings.UPLOAD_MAX_SIZE.items() if k != "review"
+        }
+        user = UserFactory()
+        with pytest.raises(PurposeNotConfigured):
+            UploadService.presign(
+                user=user,
+                purpose=MediaPurpose.REVIEW,
+                content_type="image/jpeg",
+                content_length=1000,
+            )
 
 
 @pytest.mark.django_db

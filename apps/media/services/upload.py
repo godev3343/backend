@@ -36,6 +36,7 @@ from apps.media.services.exceptions import (
     FileTooSmall,
     MediaAssetNotFound,
     NotMediaOwner,
+    PurposeNotConfigured,
     SourceContentTypeMismatch,
     SourceNotUploaded,
     UnsupportedContentType,
@@ -73,8 +74,14 @@ class UploadService:
         try:
             return settings.UPLOAD_MAX_SIZE[purpose]
         except KeyError as exc:
-            # purpose уже провалидирован сериализатором, но на всякий случай
-            raise UnsupportedContentType() from exc
+            logger.error(
+                "Upload purpose '%s' missing in UPLOAD_MAX_SIZE config. "
+                "Check config/settings/base.py and Railway env vars.",
+                purpose,
+            )
+            raise PurposeNotConfigured(
+                message=f"Upload purpose '{purpose}' is not configured on server."
+            ) from exc
 
     # ---- presign --------------------------------------------------------
 

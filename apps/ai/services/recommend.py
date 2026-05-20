@@ -9,11 +9,20 @@
 5. Фильтр hallucinated place_id по white list.
 6. Лог запроса в AiRequestLog (всегда — и при ошибке тоже).
 7. Возврат списка рекомендаций с обогащением (name из БД, чтобы не верить модели).
+
+Retry-логика:
+- Один retry с пониженной температурой на транзиентные ошибки
+  (LLMTruncated, LLMEmpty, JSONDecodeError). На gemini-2.5-flash thinking
+  иногда сжирает max_output_tokens — повтор без thinking-budget'а часто
+  спасает. Подробности — apps/ai/clients/gemini.py.
+- НЕ retry'им: LLMRateLimited (бесполезно — лимит per-минута/день),
+  LLMBlocked (safety filter будет блокировать повторно).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -21,7 +30,16 @@ from typing import Any
 from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
 
-from apps.ai.clients.base import LLMClient, LLMError, LLMMessage
+from apps.ai.clients.base import (
+    LLMBlocked,
+    LLMClient,
+    LLMEmpty,
+    LLMError,
+    LLMMessage,
+    LLMRateLimited,
+    LLMResponse,
+    LLMTruncated,
+)
 from apps.ai.clients.factory import get_llm_client
 from apps.ai.models import AiRequestLog, AiRequestStatus
 from apps.ai.prompts import (
@@ -32,11 +50,15 @@ from apps.ai.prompts import (
 from apps.ai.services.context import build_context
 from apps.ai.services.cost import calc_cost_usd
 from apps.ai.services.exceptions import (
+    AiBlockedByModeration,
     AiInvalidResponse,
     AiNoValidPlaces,
     AiProviderError,
+    AiRateLimited,
 )
 from apps.places.models import Place
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -45,9 +67,23 @@ MAX_RECOMMENDATIONS = 3
 # Сколько вообще принимаем от модели, до пост-фильтра.
 LLM_MAX_RESPONSE_ITEMS = 5
 
-# Подбираем под наш контекст: ~5K на system + ~200 на user = ~5.2K input;
-# на ответ хватает 600-800 (3 места × ~150 токенов reasoning).
-MAX_OUTPUT_TOKENS = 800
+# 2000 вместо прежних 800: на gemini-2.5-flash thinking-токены учитываются
+# в max_output_tokens. Даже с thinking_budget=0 (см. gemini.py) на сложных
+# структурных ответах модель может «забыть» отключить thinking — это
+# известный bug в SDK (googleapis/python-genai#782). Поднимаем потолок,
+# чтобы оставить запас. Стоимость на flash: $2.50/1M output × ~800 токенов
+# на полный ответ ≈ $0.002. Лишний потолок — не лишние списания.
+MAX_OUTPUT_TOKENS = 2000
+
+# Температура на основной попытке и на retry. Понижаем на повторе —
+# детерминизм увеличивает шанс что модель уложится в формат и токены.
+PRIMARY_TEMPERATURE = 0.7
+RETRY_TEMPERATURE = 0.2
+
+# Когда не знаем имени модели (LLMError до получения response) — пишем
+# что использовали по конфигу. Это лучше, чем хардкод "unknown" —
+# для аналитики стоимости/частоты ошибок по моделям полезно.
+_UNKNOWN_MODEL = "unknown"
 
 
 @dataclass(frozen=True)
@@ -72,7 +108,8 @@ async def recommend(*, user_id: int, query: str) -> RecommendResult:
     """
     Главный entry-point. Возвращает рекомендации + id лога.
 
-    Бросает AiProviderError / AiInvalidResponse / AiNoValidPlaces при ошибках.
+    Бросает AiProviderError / AiInvalidResponse / AiNoValidPlaces /
+            AiRateLimited / AiBlockedByModeration при ошибках.
     Лог пишется ВСЕГДА (включая ошибочные кейсы) — для дебага и контроля стоимости.
     """
     user = await _get_user(user_id)
@@ -87,47 +124,20 @@ async def recommend(*, user_id: int, query: str) -> RecommendResult:
     client: LLMClient = get_llm_client()
     started_at = time.perf_counter()
 
-    try:
-        response = await client.complete(
-            system=system,
-            messages=[LLMMessage(role="user", content=user_message)],
-            max_tokens=MAX_OUTPUT_TOKENS,
-            temperature=0.7,
-            response_schema=RECOMMEND_RESPONSE_SCHEMA,
-        )
-    except LLMError as exc:
-        latency_ms = int((time.perf_counter() - started_at) * 1000)
-        await _log_error(
-            user_id=user_id,
-            query=query,
-            model=getattr(exc, "provider", "unknown"),
-            latency_ms=latency_ms,
-            error=str(exc)[:500],
-        )
-        raise AiProviderError(str(exc)) from exc
+    # Внутри _call_with_retry либо вернётся валидный response + parsed items
+    # с залогированными transient attempt'ами (для observability), либо
+    # будет проброшено AiError-подкласс ПОСЛЕ записи в AiRequestLog.
+    # То есть на выходе сюда — всегда успех.
+    response, raw_items, attempt_errors = await _call_with_retry(
+        client=client,
+        system=system,
+        user_message=user_message,
+        user_id=user_id,
+        query=query,
+        started_at=started_at,
+    )
 
-    latency_ms = int((time.perf_counter() - started_at) * 1000)
-
-    # Парсим JSON. Gemini в JSON-mode возвращает валидный JSON, но
-    # на всякий случай ловим исключение — модель может вернуть пустой
-    # текст при срабатывании safety filter.
-    try:
-        raw = json.loads(response.text)
-        raw_items = raw.get("items", [])
-        if not isinstance(raw_items, list):
-            raise ValueError("items is not a list")
-    except (json.JSONDecodeError, ValueError) as exc:
-        await _log_error(
-            user_id=user_id,
-            query=query,
-            model=response.model,
-            latency_ms=latency_ms,
-            error=f"invalid_json: {exc}"[:500],
-            input_tokens=response.input_tokens,
-            output_tokens=response.output_tokens,
-            cached_input_tokens=response.cached_input_tokens,
-        )
-        raise AiInvalidResponse(f"invalid JSON from model: {exc}") from exc
+    latency_ms = _elapsed_ms(started_at)
 
     # Фильтрация и валидация
     items = _filter_and_enrich(
@@ -141,7 +151,7 @@ async def recommend(*, user_id: int, query: str) -> RecommendResult:
             query=query,
             model=response.model,
             latency_ms=latency_ms,
-            error="no_valid_places_after_filter",
+            error=_join_errors("no_valid_places_after_filter", attempt_errors),
             input_tokens=response.input_tokens,
             output_tokens=response.output_tokens,
             cached_input_tokens=response.cached_input_tokens,
@@ -175,7 +185,148 @@ async def recommend(*, user_id: int, query: str) -> RecommendResult:
         cached_input_tokens=response.cached_input_tokens,
     )
 
+    # Все ошибки на пути к успеху были транзиентными — но если их видели,
+    # это сигнал для мониторинга промптов / лимитов.
+    if attempt_errors:
+        logger.info(
+            "recommend succeeded after transient errors: user_id=%s attempts=%s",
+            user_id,
+            attempt_errors,
+        )
+
     return RecommendResult(items=recommendations, log_id=log.pk)
+
+
+# ---- retry loop ---------------------------------------------------------
+
+
+async def _call_with_retry(
+    *,
+    client: LLMClient,
+    system: str,
+    user_message: str,
+    user_id: int,
+    query: str,
+    started_at: float,
+) -> tuple[LLMResponse, list[Any], list[str]]:
+    """
+    Делает основной вызов и при транзиентной ошибке — один retry.
+
+    Возвращает (response, raw_items, attempt_errors), где attempt_errors —
+    список причин неудач для observability (записываются в AiRequestLog
+    при финальном успехе как метаданные, но через logger.info).
+
+    На терминальной ошибке (после retry или сразу):
+      1. Пишет AiRequestLog со status=ERROR через _log_error.
+      2. Бросает соответствующий AiError-подкласс.
+
+    Сервис снаружи не должен ловить AiError из этой функции — пробрасывает
+    в view, где DRF api_exception_handler конвертит в HTTP-ответ.
+    """
+    attempt_errors: list[str] = []
+
+    for attempt in range(2):
+        temperature = PRIMARY_TEMPERATURE if attempt == 0 else RETRY_TEMPERATURE
+        try:
+            response = await client.complete(
+                system=system,
+                messages=[LLMMessage(role="user", content=user_message)],
+                max_tokens=MAX_OUTPUT_TOKENS,
+                temperature=temperature,
+                response_schema=RECOMMEND_RESPONSE_SCHEMA,
+            )
+        except LLMRateLimited as exc:
+            # 429 — терминально, retry бесполезен.
+            await _log_error(
+                user_id=user_id,
+                query=query,
+                model=_UNKNOWN_MODEL,
+                latency_ms=_elapsed_ms(started_at),
+                error=f"rate_limited: {exc}"[:500],
+            )
+            raise AiRateLimited(
+                str(exc),
+                retry_after_seconds=exc.retry_after_seconds,
+            ) from exc
+        except LLMBlocked as exc:
+            # Safety — терминально, retry заблокируется так же.
+            await _log_error(
+                user_id=user_id,
+                query=query,
+                model=_UNKNOWN_MODEL,
+                latency_ms=_elapsed_ms(started_at),
+                error=f"blocked: {exc}"[:500],
+            )
+            raise AiBlockedByModeration(str(exc)) from exc
+        except (LLMTruncated, LLMEmpty) as exc:
+            attempt_errors.append(f"attempt_{attempt}:{type(exc).__name__}:{exc}")
+            if attempt == 0:
+                logger.info("retrying after transient LLM error: %s", exc)
+                continue
+            # Второй раз тоже не получилось — терминально.
+            await _log_error(
+                user_id=user_id,
+                query=query,
+                model=_UNKNOWN_MODEL,
+                latency_ms=_elapsed_ms(started_at),
+                error=_join_errors("retry_failed", attempt_errors),
+            )
+            raise AiInvalidResponse(str(exc)) from exc
+        except LLMError as exc:
+            # Неизвестная провайдерская ошибка (timeout, 5xx без распознанного
+            # подтипа). Терминально — не понимаем причину, рисковать с retry
+            # неразумно.
+            await _log_error(
+                user_id=user_id,
+                query=query,
+                model=_UNKNOWN_MODEL,
+                latency_ms=_elapsed_ms(started_at),
+                error=f"provider_error: {exc}"[:500],
+            )
+            raise AiProviderError(str(exc)) from exc
+
+        # Получили response — парсим JSON.
+        try:
+            raw = json.loads(response.text)
+            raw_items = raw.get("items", [])
+            if not isinstance(raw_items, list):
+                raise ValueError("items is not a list")
+        except (json.JSONDecodeError, ValueError) as exc:
+            attempt_errors.append(f"attempt_{attempt}:invalid_json:{exc}")
+            if attempt == 0:
+                logger.info("retrying after JSON parse error: %s", exc)
+                continue
+            # JSON всё ещё кривой — терминально.
+            await _log_error(
+                user_id=user_id,
+                query=query,
+                model=response.model,
+                latency_ms=_elapsed_ms(started_at),
+                error=_join_errors("invalid_json_after_retry", attempt_errors),
+                input_tokens=response.input_tokens,
+                output_tokens=response.output_tokens,
+                cached_input_tokens=response.cached_input_tokens,
+            )
+            raise AiInvalidResponse(f"invalid JSON from model: {exc}") from exc
+
+        # Дошли сюда — всё ок.
+        return response, raw_items, attempt_errors
+
+    # Невозможно по логике цикла, но mypy/линтер успокаиваются.
+    raise AiInvalidResponse("retry loop exhausted unexpectedly")
+
+
+def _elapsed_ms(started_at: float) -> int:
+    return int((time.perf_counter() - started_at) * 1000)
+
+
+def _join_errors(prefix: str, errors: list[str]) -> str:
+    """Склеивает список ошибок в одну строку для AiRequestLog.error (≤500 chars)."""
+    joined = " ; ".join(errors)
+    return f"{prefix}: {joined}"[:500]
+
+
+# ---- filtering and validation ------------------------------------------
 
 
 def _filter_and_enrich(*, raw_items: list[Any], valid_ids: frozenset[int]) -> list[dict[str, Any]]:

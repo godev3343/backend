@@ -46,14 +46,15 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_user(self, obj: Review) -> dict:
+        avatar_url = obj.user.avatar_url or None
         return _ReviewUserMiniSerializer(
             {
                 "id": obj.user_id,
                 "public_name": obj.user.public_name,
-                "avatar_url": obj.user.avatar_url,
+                "avatar_url": avatar_url,
             }
         ).data
-
+    
     def get_photo_url(self, obj: Review) -> str | None:
         if obj.photo is None:
             return None

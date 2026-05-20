@@ -1,9 +1,10 @@
+# apps/social/services/queries.py
 """
-Аннотация friendship_status на User-queryset.
+Аннотация friendship_status + friendship_id на User-queryset.
 
 Используется в /api/users/{id}, /api/users/search, чтобы фронт мог
 показывать корректную кнопку (Add / Accept / Cancel / Friends) без
-N+1 запросов.
+N+1 запросов и без дополнительного fetch'а кеша заявок.
 
 Возможные значения friendship_status:
 - "none"               — отношений нет
@@ -13,9 +14,15 @@ N+1 запросов.
 - "blocked"            — кто-то кого-то заблокировал
 - "self"               — это я сам
 
-Реализация — четыре EXISTS-subquery, проверяющих наличие записей в
-Friendship для каждого из статусов. Дешевле, чем выгребать Friendship и
-матчить в Python.
+friendship_id:
+- Не null только для pending_outgoing / pending_incoming.
+- Нужен фронту для cancel/accept/decline-эндпоинтов, которые принимают
+  именно Friendship.pk, а не user_id.
+- Для friends/blocked/none/self — null (фронту не нужен).
+
+Реализация — пять Subquery: четыре EXISTS для статуса + одна Subquery с
+Friendship.pk для pending. Дешевле, чем выгребать Friendship и матчить
+в Python; OuterRef разруливает корреляцию.
 """
 
 from __future__ import annotations
@@ -23,10 +30,13 @@ from __future__ import annotations
 from django.db.models import (
     BooleanField,
     Case,
+    CharField,
     Exists,
+    IntegerField,
     OuterRef,
     Q,
     QuerySet,
+    Subquery,
     Value,
     When,
 )
@@ -36,16 +46,17 @@ from apps.social.models import Friendship, FriendshipStatus
 
 def annotate_friendship_status(qs: QuerySet, *, viewer_id: int | None) -> QuerySet:
     """
-    Аннотирует каждого User в qs полем `friendship_status` относительно
-    viewer (request.user).
+    Аннотирует каждого User в qs полями `friendship_status` и `friendship_id`
+    относительно viewer (request.user).
 
     Если viewer не аутентифицирован (viewer_id=None) — все юзеры получают
-    статус "none".
+    статус "none" и friendship_id=null.
     """
     if viewer_id is None:
-        # Анонимам всё равно нужно поле — пусть будет "none", чтобы
-        # сериализатор не падал.
-        return qs.annotate(friendship_status=Value("none", output_field=_str_field()))
+        return qs.annotate(
+            friendship_status=Value("none", output_field=_str_field()),
+            friendship_id=Value(None, output_field=IntegerField(null=True)),
+        )
 
     # Self — отдельная аннотация
     is_self = Case(
@@ -82,6 +93,12 @@ def annotate_friendship_status(qs: QuerySet, *, viewer_id: int | None) -> QueryS
         status=FriendshipStatus.PENDING,
     )
 
+    # friendship_id для pending — берём ровно одну запись через Subquery.
+    # UniqueConstraint(from_user, to_user) гарантирует, что таких записей
+    # в одну сторону не больше одной, поэтому [:1] безопасен.
+    pending_out_id_subq = pending_out_subq.values("pk")[:1]
+    pending_in_id_subq = pending_in_subq.values("pk")[:1]
+
     return qs.annotate(
         _is_self=is_self,
         _is_friends=Exists(accepted_subq),
@@ -97,11 +114,16 @@ def annotate_friendship_status(qs: QuerySet, *, viewer_id: int | None) -> QueryS
             default=Value("none"),
             output_field=_str_field(),
         ),
+        # null для friends/blocked/none/self; pk Friendship для pending
+        friendship_id=Case(
+            When(_is_pending_out=True, then=Subquery(pending_out_id_subq)),
+            When(_is_pending_in=True, then=Subquery(pending_in_id_subq)),
+            default=Value(None),
+            output_field=IntegerField(null=True),
+        ),
     )
 
 
-def _str_field():  # type: ignore[no-untyped-def]
+def _str_field() -> CharField:
     """CharField для output_field в Value/Case."""
-    from django.db.models import CharField
-
     return CharField(max_length=32)

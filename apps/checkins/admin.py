@@ -2,10 +2,11 @@ from django.contrib import admin
 from django.contrib.gis import admin as gis_admin
 
 from apps.checkins.models import CheckIn, Like
+from apps.places.admin import AstanaCenteredGISAdmin
 
 
 @gis_admin.register(CheckIn)
-class CheckInAdmin(gis_admin.GISModelAdmin):
+class CheckInAdmin(AstanaCenteredGISAdmin):
     list_display = ("id", "user", "place", "likes_count", "created_at")
     list_filter = ("place__category",)
     search_fields = ("user__email", "user__display_name", "place__name")

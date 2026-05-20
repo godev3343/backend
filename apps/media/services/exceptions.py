@@ -54,3 +54,14 @@ class SourceNotUploaded(MediaError):
 class SourceContentTypeMismatch(MediaError):
     default_code = "source_content_type_mismatch"
     default_message = "Uploaded file content-type does not match the requested one."
+
+class PurposeNotConfigured(MediaError):
+    """
+    Purpose валиден (есть в MediaPurpose.choices), но не сконфигурирован
+    в settings.UPLOAD_MAX_SIZE. Это баг развёртывания, не клиента.
+    Возвращаем 500, чтобы Sentry поймал и инженер увидел.
+    """
+
+    default_code = "purpose_not_configured"
+    default_message = "Upload purpose is not configured on server."
+    status_code = 500
