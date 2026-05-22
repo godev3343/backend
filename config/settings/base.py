@@ -237,10 +237,19 @@ DATABASES = {
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env.redis_url,
-    },
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env.str("REDIS_URL"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 3,  # секунд на установку соединения
+            "SOCKET_TIMEOUT": 3,           # на каждую операцию
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
 }
+
+DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
+DJANGO_REDIS_LOGGER = "django_redis"
 
 # ---------- Celery ----------------------------------------------------------
 
