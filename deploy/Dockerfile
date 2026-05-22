@@ -46,7 +46,7 @@ RUN SECRET_KEY="build-only-dummy-secret-key-32chars-min-aaaa" \
     python manage.py collectstatic --noinput
 
 USER app
-EXPOSE 8000
+EXPOSE 8080
 
 ENTRYPOINT ["./deploy/entrypoint.sh"]
 CMD ["web"]
