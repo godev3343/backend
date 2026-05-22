@@ -33,11 +33,17 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app . .
 
-# Директории для runtime — должны принадлежать app
 RUN mkdir -p /app/staticfiles /app/.gunicorn && \
     chown -R app:app /app/staticfiles /app/.gunicorn
 
 RUN chmod +x deploy/entrypoint.sh
+
+RUN SECRET_KEY="build-only-dummy-secret-key-32chars-min-aaaa" \
+    DATABASE_URL="postgres://u:p@localhost:5432/d" \
+    REDIS_URL="redis://localhost:6379/0" \
+    DJANGO_SETTINGS_MODULE=config.settings.prod \
+    DEBUG=false \
+    python manage.py collectstatic --noinput
 
 USER app
 EXPOSE 8000
