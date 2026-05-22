@@ -43,8 +43,6 @@ RUN mkdir -p /app/staticfiles && chown -R app:app /app/staticfiles
 # Exec-бит для entrypoint.
 RUN chmod +x deploy/entrypoint.sh
 
-ls -la deploy/entrypoint.sh
-
 USER app
 EXPOSE 8000
 
