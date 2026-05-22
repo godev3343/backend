@@ -1,4 +1,3 @@
-# config/settings/base.py
 """Base settings — общие для всех окружений."""
 
 from __future__ import annotations
@@ -238,7 +237,7 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env.REDIS_URL,
+        "LOCATION": env.redis_url,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "SOCKET_CONNECT_TIMEOUT": 3,  # секунд на установку соединения
