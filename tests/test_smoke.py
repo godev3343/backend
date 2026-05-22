@@ -20,4 +20,5 @@ def test_readiness_endpoint(api_client) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["checks"]["database"] == "ok"
+    # Redis в CI поднят, поэтому ок. В проде он опционален.
     assert body["checks"]["redis"] == "ok"
