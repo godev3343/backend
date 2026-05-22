@@ -1,5 +1,3 @@
-# deploy/Dockerfile
-
 # ---------- builder ----------
 FROM python:3.12-slim AS builder
 
@@ -8,8 +6,6 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1
 
-# Только то что реально нужно для uv sync на готовых wheels.
-# build-essential выкинут — все наши deps есть как wheels.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -37,10 +33,10 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app . .
 
-# Staticfiles с правильными правами
-RUN mkdir -p /app/staticfiles && chown -R app:app /app/staticfiles
+# Директории для runtime — должны принадлежать app
+RUN mkdir -p /app/staticfiles /app/.gunicorn && \
+    chown -R app:app /app/staticfiles /app/.gunicorn
 
-# Exec-бит для entrypoint.
 RUN chmod +x deploy/entrypoint.sh
 
 USER app
