@@ -390,17 +390,22 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "json": {
-            "()": "structlog.stdlib.ProcessorFormatter",
-            "processor": __import__("structlog").processors.JSONRenderer(),
+        "plain": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
         },
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "json"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain",
+        },
     },
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
-        "django.db.backends": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.db.backends": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "gunicorn.access": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "gunicorn.error": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
 
