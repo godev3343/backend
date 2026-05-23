@@ -240,9 +240,11 @@ CACHES = {
         "LOCATION": env.redis_url,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 3,  # секунд на установку соединения
-            "SOCKET_TIMEOUT": 3,           # на каждую операцию
+            "SOCKET_CONNECT_TIMEOUT": 1,  # было 3 — слишком долго блокирует запрос
+            "SOCKET_TIMEOUT": 1,
             "IGNORE_EXCEPTIONS": True,
+            # Не делать retry — иначе таймауты суммируются
+            "CONNECTION_POOL_KWARGS": {"retry_on_timeout": False},
         },
     }
 }
