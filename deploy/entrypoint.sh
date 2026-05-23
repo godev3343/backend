@@ -10,13 +10,19 @@ case "${1:-web}" in
     ;;
   web)
     echo "[entrypoint] starting gunicorn on :${PORT:-8000}"
+    # --preload: грузим Django ДО fork worker'ов. Один разогрев импортов
+    #   на весь контейнер, меньше памяти (CoW), и предсказуемый старт.
+    #   Минус — нельзя hot-reload, но в проде это и не нужно.
+    # %(L)s в access-logformat — request time в секундах, нужен для дебага latency.
     exec gunicorn config.wsgi:application \
       --bind "0.0.0.0:${PORT:-8000}" \
       --workers "${WEB_CONCURRENCY:-2}" \
       --threads 2 \
       --worker-class gthread \
       --timeout 60 \
+      --preload \
       --access-logfile - \
+      --access-logformat '%(h)s "%(r)s" %(s)s %(b)s %(L)ss "%(a)s"' \
       --error-logfile - \
       --capture-output \
       --enable-stdio-inheritance

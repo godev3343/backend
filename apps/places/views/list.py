@@ -45,7 +45,8 @@ class PlaceListView(ListAPIView):
 
     serializer_class = PlaceListItemSerializer
     permission_classes = (AllowAny,)
-    pagination_class = None  # маркеры карты — без пагинации, отдаём всё в bbox
+    pagination_class = None
+    throttle_classes = ()
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         # Полный override list(): у нас нестандартный pipeline с кэшем
