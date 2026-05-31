@@ -18,6 +18,10 @@ from apps.social.views.user import (
     UserPublicView,
     UserSearchView,
 )
+from apps.social.views.leaderboard import (
+    FriendsLeaderboardView,
+    GlobalLeaderboardView,
+)
 
 __all__ = [
     "FriendListView",
@@ -32,4 +36,6 @@ __all__ = [
     "UserPreferencesView",
     "UserPublicView",
     "UserSearchView",
+    "FriendsLeaderboardView",
+    "GlobalLeaderboardView",
 ]

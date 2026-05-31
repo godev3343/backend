@@ -17,6 +17,8 @@ from apps.social.views import (
     UserPreferencesView,
     UserPublicView,
     UserSearchView,
+    FriendsLeaderboardView,
+    GlobalLeaderboardView,
 )
 
 app_name = "social"
@@ -72,5 +74,11 @@ urlpatterns = [
         "friends/<int:user_id>",
         FriendRemoveView.as_view(),
         name="friend_remove",
+    ),
+    path("leaderboard", GlobalLeaderboardView.as_view(), name="leaderboard_global"),
+    path(
+        "leaderboard/friends",
+        FriendsLeaderboardView.as_view(),
+        name="leaderboard_friends",
     ),
 ]
