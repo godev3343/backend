@@ -9,7 +9,7 @@ Reviews endpoints:
 """
 from __future__ import annotations
 
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -26,23 +26,47 @@ from apps.reviews.serializers import (
 from apps.reviews.services import ReviewLikeService, ReviewService
 from apps.users.permissions import IsEmailVerified
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
+
+# Состояние лайка отзыва после действия. `result` присутствует только в ответе
+# на POST (created/exists).
+_ReviewLikeStateSerializer = inline_serializer(
+    name="ReviewLikeState",
+    fields={
+        "result": serializers.CharField(required=False),
+        "likes_count": serializers.IntegerField(),
+        "is_liked": serializers.BooleanField(),
+    },
+)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class PlaceReviewsView(GenericAPIView):
     """GET list + POST create отзывов для конкретного place."""
 
     serializer_class = ReviewSerializer
     pagination_class = LimitOffsetPagination
+    # Запросы строятся вручную в get()/post(); queryset нужен только чтобы
+    # drf-spectacular мог определить модель при генерации схемы.
+    queryset = Review.objects.none()
 
     def get_permissions(self):  # type: ignore[no-untyped-def]
         if self.request.method == "POST":
             return [IsAuthenticated(), IsEmailVerified()]
         return [IsAuthenticatedOrReadOnly()]
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Отзывы места",
+        description=(
+            "Список отзывов о заведении в обратном хронологическом порядке. "
+            "Доступен для чтения всем. Для аутентифицированных пользователей "
+            "`is_liked`/`is_mine` отражают их отношение к отзыву. Пагинация "
+            "limit/offset."
+        ),
+        responses={200: ReviewSerializer(many=True)},
+    )
     def get(self, request: Request, place_id: int) -> Response:
         qs = (
             Review.objects.filter(place_id=place_id)
@@ -73,6 +97,23 @@ class PlaceReviewsView(GenericAPIView):
             return paginator.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Создать отзыв о месте",
+        description=(
+            "Создаёт отзыв текущего пользователя о заведении: оценка 1–5, "
+            "опциональный текст и фото (`photo_key` из загруженного ассета). "
+            "Один отзыв на место от пользователя — повторный вернёт ошибку.\n\n"
+            "Требует аутентификации и подтверждённого email."
+        ),
+        request=ReviewCreateSerializer,
+        responses={
+            201: ReviewSerializer,
+            400: DetailSerializer,
+            401: DetailSerializer,
+            403: DetailSerializer,
+        },
+    )
     def post(self, request: Request, place_id: int) -> Response:
         serializer = ReviewCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -92,12 +133,29 @@ class PlaceReviewsView(GenericAPIView):
         return Response(output.data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class ReviewDetailView(APIView):
     """PATCH + DELETE на свой отзыв."""
 
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Обновить свой отзыв",
+        description=(
+            "Частичное обновление собственного отзыва: любое из полей `rating`, "
+            "`text`, `photo_key` (нужно минимум одно). `photo_key=null` удаляет "
+            "фото из отзыва.\n\n"
+            "Редактировать можно только свой отзыв. Возвращает обновлённый отзыв."
+        ),
+        request=ReviewUpdateSerializer,
+        responses={
+            200: ReviewSerializer,
+            400: DetailSerializer,
+            401: DetailSerializer,
+            403: DetailSerializer,
+            404: DetailSerializer,
+        },
+    )
     def patch(self, request: Request, pk: int) -> Response:
         serializer = ReviewUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -129,17 +187,46 @@ class ReviewDetailView(APIView):
         )
         return Response(output.data)
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Удалить свой отзыв",
+        description=(
+            "Удаляет собственный отзыв. Удалить можно только свой отзыв. "
+            "Требует аутентификации и подтверждённого email."
+        ),
+        responses={
+            204: None,
+            401: DetailSerializer,
+            403: DetailSerializer,
+            404: DetailSerializer,
+        },
+    )
     def delete(self, request: Request, pk: int) -> Response:
         ReviewService.delete(user=request.user, review_id=pk)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class ReviewLikeView(APIView):
     """POST + DELETE лайка на отзыв. Идемпотентно."""
 
     permission_classes = [IsAuthenticated, IsEmailVerified]
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Лайкнуть отзыв",
+        description=(
+            "Ставит лайк на отзыв. Идемпотентно: первый лайк → 201, повторный → "
+            "200. Возвращает актуальный `likes_count` и `is_liked`."
+        ),
+        request=None,
+        responses={
+            200: _ReviewLikeStateSerializer,
+            201: _ReviewLikeStateSerializer,
+            401: DetailSerializer,
+            403: DetailSerializer,
+            404: DetailSerializer,
+        },
+    )
     def post(self, request: Request, pk: int) -> Response:
         result = ReviewLikeService.like(user=request.user, review_id=pk)
         review = Review.objects.only("likes_count").get(pk=pk)
@@ -155,6 +242,20 @@ class ReviewLikeView(APIView):
             ),
         )
 
+    @extend_schema(
+        tags=["reviews"],
+        summary="Убрать лайк с отзыва",
+        description=(
+            "Снимает лайк с отзыва. Идемпотентно. Возвращает актуальный "
+            "`likes_count` и `is_liked`."
+        ),
+        responses={
+            200: _ReviewLikeStateSerializer,
+            401: DetailSerializer,
+            403: DetailSerializer,
+            404: DetailSerializer,
+        },
+    )
     def delete(self, request: Request, pk: int) -> Response:
         ReviewLikeService.unlike(user=request.user, review_id=pk)
         review = Review.objects.only("likes_count").get(pk=pk)

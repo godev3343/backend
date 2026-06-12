@@ -23,13 +23,20 @@ from apps.social.models import Friendship, FriendshipStatus
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
-
 if TYPE_CHECKING:
     from rest_framework.request import Request
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["checkins"],
+    summary="Лента чек-инов друзей",
+    description=(
+        "Лента чек-инов друзей текущего пользователя в обратном хронологическом "
+        "порядке. Собственные чек-ины не включаются — для них есть "
+        "`GET /api/checkins/me`. У каждого чек-ина есть `is_liked` для текущего "
+        "пользователя. Cursor-пагинация (параметр `cursor`)."
+    ),
+)
 class FeedView(ListAPIView):
     """GET /api/feed?cursor=...&limit=20"""
 

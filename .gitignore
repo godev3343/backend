@@ -132,3 +132,6 @@ tmp/
 *.orig
 *.rej
 .netrc
+
+CLAUDE.MD
+.claude/

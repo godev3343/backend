@@ -34,9 +34,9 @@ from apps.social.services import annotate_friendship_status
 from apps.social.throttling import UserSearchThrottle
 from apps.users.permissions import IsOnboarded
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 User = get_user_model()
 
@@ -84,16 +84,40 @@ def _serialize_me(user) -> dict:  # type: ignore[no-untyped-def]
     return UserMeSerializer(user).data
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class UserMeView(APIView):
     """GET и PATCH /api/users/me."""
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["users"],
+        summary="Мой профиль",
+        description=(
+            "Полный приватный профиль текущего пользователя, включая email, "
+            "счётчики друзей и чек-инов, поинты, статус и AI-предпочтения "
+            "(`preferred_vibes`, `ai_context`)."
+        ),
+        responses={200: UserMeSerializer, 401: DetailSerializer},
+    )
     def get(self, request: Request) -> Response:
         user = _user_me_with_counts(request.user.pk)
         return Response(_serialize_me(user), status=status.HTTP_200_OK)
 
+    @extend_schema(
+        tags=["users"],
+        summary="Обновить мой профиль",
+        description=(
+            "Частичное обновление профиля. Передавайте только изменяемые поля "
+            "(нужно минимум одно): `first_name`, `last_name`, `display_name`, "
+            "`bio`, `preferred_vibes`, `ai_context`.\n\n"
+            "Email/пароль здесь не меняются (это auth-флоу), аватар грузится "
+            "через `/api/upload/*`. Для полной замены AI-настроек есть отдельный "
+            "идемпотентный `PUT /api/users/me/preferences`. Возвращает "
+            "обновлённый профиль."
+        ),
+        request=UserMeUpdateSerializer,
+        responses={200: UserMeSerializer, 400: DetailSerializer, 401: DetailSerializer},
+    )
     def patch(self, request: Request) -> Response:
         serializer = UserMeUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -114,7 +138,19 @@ class UserMeView(APIView):
         return Response(_serialize_me(user), status=status.HTTP_200_OK)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Публичный профиль пользователя",
+    description=(
+        "Публичный профиль другого пользователя по id. Скрыты приватные поля "
+        "(email, телефон, `ai_context` и т.п.). Включает статус дружбы с текущим "
+        "пользователем (`friendship_status`, `friendship_id`) — фронт рисует "
+        "соответствующую кнопку.\n\n"
+        "Требует пройденного онбординга. Возвращает 404, если пользователь не "
+        "найден или неактивен."
+    ),
+    responses={200: UserPublicSerializer, 401: DetailSerializer, 403: DetailSerializer, 404: DetailSerializer},
+)
 class UserPublicView(APIView):
     """GET /api/users/{id} — публичный профиль другого юзера."""
 
@@ -147,7 +183,28 @@ class UserPublicView(APIView):
         return Response(UserPublicSerializer(user).data, status=status.HTTP_200_OK)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Поиск пользователей",
+    description=(
+        "Поиск пользователей по `q` (минимум 2 символа): совпадение по "
+        "`display_name`/`first_name` (без учёта регистра) либо точный e-mail. "
+        "Текущий пользователь из выдачи исключается. При `q` короче 2 символов "
+        "возвращается пустой результат.\n\n"
+        "Требует пройденного онбординга. Пагинация limit/offset (максимум 20 на "
+        "страницу). Throttling по пользователю."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="q",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Поисковый запрос, минимум 2 символа.",
+        ),
+    ],
+    responses={200: UserSearchResultSerializer(many=True), 401: DetailSerializer, 403: DetailSerializer},
+)
 class UserSearchView(GenericAPIView):
     """
     GET /api/users/search?q=...&limit=&offset=
@@ -160,6 +217,9 @@ class UserSearchView(GenericAPIView):
     throttle_classes = [UserSearchThrottle]
     pagination_class = LimitOffsetPagination
     serializer_class = UserSearchResultSerializer
+    # Запрос строится вручную в get(); queryset нужен только для генерации
+    # схемы drf-spectacular.
+    queryset = User.objects.none()
 
     MIN_QUERY_LEN = 2
     MAX_LIMIT = 20

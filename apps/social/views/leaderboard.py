@@ -16,7 +16,7 @@ from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 from apps.social.serializers.leaderboard import LeaderboardRowSerializer
 from apps.social.services.leaderboard import LeaderboardService
 from apps.users.permissions import IsEmailVerified, IsOnboarded
@@ -44,7 +44,15 @@ class _BaseLeaderboardView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["gamification"],
+    summary="Глобальный лидерборд",
+    description=(
+        "Рейтинг всех пользователей по поинтам (по убыванию). Поле `rank` — "
+        "позиция с учётом `offset`. Пагинация limit/offset."
+    ),
+    responses={200: LeaderboardRowSerializer(many=True), 401: DetailSerializer, 403: DetailSerializer},
+)
 class GlobalLeaderboardView(_BaseLeaderboardView):
     """GET /api/leaderboard — все пользователи по поинтам."""
 
@@ -54,7 +62,16 @@ class GlobalLeaderboardView(_BaseLeaderboardView):
         return LeaderboardService.global_qs()
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["gamification"],
+    summary="Лидерборд среди друзей",
+    description=(
+        "Рейтинг по поинтам среди друзей текущего пользователя и его самого "
+        "(по убыванию). Поле `rank` — позиция с учётом `offset`. Пагинация "
+        "limit/offset."
+    ),
+    responses={200: LeaderboardRowSerializer(many=True), 401: DetailSerializer, 403: DetailSerializer},
+)
 class FriendsLeaderboardView(_BaseLeaderboardView):
     """GET /api/leaderboard/friends — сам юзер + друзья по поинтам."""
 

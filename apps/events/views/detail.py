@@ -11,10 +11,21 @@ from apps.events.services.query import build_detail_queryset
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["events"],
+    summary="Карточка события",
+    description=(
+        "Полная карточка события по id: описание, место, время, обложка и "
+        "attendance-информация (`attendees_count`, `is_going` для текущего "
+        "пользователя, превью друзей-участников). Доступна всем (AllowAny); для "
+        "анонимов `is_going=false` и список друзей пуст.\n\n"
+        "Возвращает 404, если событие не найдено."
+    ),
+    responses={200: EventDetailSerializer, 404: DetailSerializer},
+)
 class EventDetailView(RetrieveAPIView):
     permission_classes = (AllowAny,)
     serializer_class = EventDetailSerializer

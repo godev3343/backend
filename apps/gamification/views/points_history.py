@@ -11,10 +11,18 @@ from apps.gamification.serializers import PointsTransactionSerializer
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
 
-
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["gamification"],
+    summary="История начисления поинтов",
+    description=(
+        "История транзакций поинтов текущего пользователя в обратном "
+        "хронологическом порядке: величина (`delta`), причина и ссылка на "
+        "источник (`ref_type`/`ref_id`). Cursor-пагинация по 50 записей.\n\n"
+        "Онбординг не требуется — историю можно смотреть, даже если что-то уже "
+        "начислено до его завершения."
+    ),
+)
 class MyPointsHistoryView(ListAPIView):
     """
     GET /api/users/me/points

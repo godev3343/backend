@@ -352,30 +352,82 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    # Порядок и описания тегов. Новые app'ы получат тег по имени и
-    # попадут в конец, в этой секции — то что хочется иметь в красивом порядке.
+    # Порядок и описания тегов. Тег каждой операции задаётся явно через
+    # @extend_schema(tags=[...]) во view; здесь — порядок и человекочитаемые
+    # описания групп в Swagger UI.
     "TAGS": [
         {
             "name": "auth",
-            "description": "Регистрация, логин, JWT, email-верификация, password reset, Google OAuth",
+            "description": (
+                "Регистрация и логин по email/паролю, выдача и ротация JWT, "
+                "верификация email, сброс пароля и вход через Google OAuth."
+            ),
         },
         {
             "name": "users",
-            "description": "Профиль текущего пользователя, онбординг, AI-предпочтения",
+            "description": (
+                "Профиль текущего пользователя (`/api/users/me`), онбординг и "
+                "редактирование собственных данных."
+            ),
         },
-        {"name": "social", "description": "Поиск пользователей, друзья, заявки"},
-        {"name": "media", "description": "Загрузка фото через presigned URLs в R2"},
-        {"name": "places", "description": "Заведения, вайбы, фото"},
-        {"name": "geocoding", "description": "Геокодинг через Mapbox"},
-        {"name": "checkins", "description": "Чек-ины, лента, лайки"},
-        {"name": "events", "description": "Афиша"},
-        {"name": "ai", "description": "AI-рекомендации «Куда пойти?»"},
-        {"name": "gamification", "description": "Поинты и история транзакций"},
-        {"name": "system", "description": "Health/readiness probes, схема API"},
+        {
+            "name": "social",
+            "description": (
+                "Поиск и публичные профили пользователей, AI-предпочтения, "
+                "заявки в друзья и управление списком друзей."
+            ),
+        },
+        {
+            "name": "media",
+            "description": (
+                "Загрузка фото в Cloudflare R2 по presigned PUT-URL: presign → "
+                "клиентский upload → confirm и опрос статуса обработки."
+            ),
+        },
+        {
+            "name": "places",
+            "description": (
+                "Заведения на карте: список по bbox с фильтрами и полная карточка "
+                "места с вайбами, фото и последними чек-инами."
+            ),
+        },
+        {
+            "name": "geocoding",
+            "description": "Прямой геокодинг адресов и POI через Mapbox.",
+        },
+        {
+            "name": "checkins",
+            "description": (
+                "Чек-ины в заведениях (гео-гейт), история своих чек-инов, "
+                "лента друзей и лайки."
+            ),
+        },
+        {
+            "name": "reviews",
+            "description": (
+                "Отзывы о заведениях: создание/редактирование своего отзыва, "
+                "список отзывов места и лайки отзывов."
+            ),
+        },
+        {
+            "name": "events",
+            "description": "Афиша событий и отметка участия («иду»).",
+        },
+        {
+            "name": "ai",
+            "description": "AI-рекомендации «Куда пойти?» на основе профиля и запроса.",
+        },
+        {
+            "name": "gamification",
+            "description": (
+                "Геймификация: история начисления поинтов, полученные ачивки и "
+                "лидерборды (глобальный и среди друзей)."
+            ),
+        },
+        {"name": "system", "description": "Health/readiness probes, схема API."},
     ],
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
-        "apps.core.openapi.assign_tag_by_path",
     ],
     # Авто-описания операций из docstring view-методов (`def post(self, ...)`)
     "GET_LIB_DOC_EXCLUDES": _default_lib_doc_excludes,

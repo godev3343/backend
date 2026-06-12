@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
@@ -23,6 +23,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.social.models import Friendship
 from apps.social.serializers import (
     FriendListItemSerializer,
     IncomingFriendRequestSerializer,
@@ -33,14 +34,43 @@ from apps.social.services import FriendshipService
 from apps.social.throttling import FriendRequestThrottle
 from apps.users.permissions import IsEmailVerified, IsOnboarded
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 _PROTECTED = [IsAuthenticated, IsEmailVerified, IsOnboarded]
 
+# Ответ на действия с заявкой/дружбой: id связи и её текущий статус
+# (pending / accepted). Хватает фронту, чтобы перерисовать кнопку.
+_FriendshipActionSerializer = inline_serializer(
+    name="FriendshipAction",
+    fields={
+        "id": serializers.IntegerField(),
+        "status": serializers.ChoiceField(choices=["pending", "accepted"]),
+    },
+)
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+
+@extend_schema(
+    tags=["social"],
+    summary="Отправить заявку в друзья",
+    description=(
+        "Отправляет заявку в друзья пользователю `to_user_id`. Если от этого "
+        "пользователя уже есть встречная заявка, дружба подтверждается "
+        "автоматически и в ответе будет `status=accepted`.\n\n"
+        "Требует подтверждённого email и пройденного онбординга. Throttling по "
+        "пользователю."
+    ),
+    request=SendFriendRequestSerializer,
+    responses={
+        201: _FriendshipActionSerializer,
+        400: DetailSerializer,
+        401: DetailSerializer,
+        403: DetailSerializer,
+        404: DetailSerializer,
+        429: DetailSerializer,
+    },
+)
 class FriendRequestCreateView(APIView):
     """POST /api/friends/requests — отправить заявку."""
 
@@ -63,13 +93,23 @@ class FriendRequestCreateView(APIView):
         )
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Входящие заявки в друзья",
+    description=(
+        "Список заявок в друзья, где текущий пользователь — получатель "
+        "(`status=pending`). Показывает отправителя каждой заявки. "
+        "Пагинация limit/offset."
+    ),
+    responses={200: IncomingFriendRequestSerializer(many=True), 401: DetailSerializer},
+)
 class IncomingFriendRequestsView(GenericAPIView):
     """GET /api/friends/requests/incoming — pending где я to_user."""
 
     permission_classes = _PROTECTED
     pagination_class = LimitOffsetPagination
     serializer_class = IncomingFriendRequestSerializer
+    queryset = Friendship.objects.none()  # для генерации схемы drf-spectacular
 
     def get(self, request: Request) -> Response:
         qs = FriendshipService.incoming_requests(user=request.user)
@@ -89,13 +129,23 @@ class IncomingFriendRequestsView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Исходящие заявки в друзья",
+    description=(
+        "Список заявок в друзья, отправленных текущим пользователем и ещё не "
+        "принятых (`status=pending`). Показывает получателя каждой заявки. "
+        "Пагинация limit/offset."
+    ),
+    responses={200: OutgoingFriendRequestSerializer(many=True), 401: DetailSerializer},
+)
 class OutgoingFriendRequestsView(GenericAPIView):
     """GET /api/friends/requests/outgoing — pending где я from_user."""
 
     permission_classes = _PROTECTED
     pagination_class = LimitOffsetPagination
     serializer_class = OutgoingFriendRequestSerializer
+    queryset = Friendship.objects.none()  # для генерации схемы drf-spectacular
 
     def get(self, request: Request) -> Response:
         qs = FriendshipService.outgoing_requests(user=request.user)
@@ -113,7 +163,22 @@ class OutgoingFriendRequestsView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Принять заявку в друзья",
+    description=(
+        "Принимает входящую заявку по её id. После этого пользователи становятся "
+        "друзьями (`status=accepted`). Принять можно только заявку, адресованную "
+        "текущему пользователю."
+    ),
+    request=None,
+    responses={
+        200: _FriendshipActionSerializer,
+        401: DetailSerializer,
+        403: DetailSerializer,
+        404: DetailSerializer,
+    },
+)
 class FriendRequestAcceptView(APIView):
     """POST /api/friends/requests/{id}/accept."""
 
@@ -124,7 +189,17 @@ class FriendRequestAcceptView(APIView):
         return Response({"id": f.pk, "status": f.status}, status=status.HTTP_200_OK)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Отклонить заявку в друзья",
+    description=(
+        "Отклоняет входящую заявку по её id (запись удаляется). Отклонить можно "
+        "только заявку, адресованную текущему пользователю. Идемпотентно "
+        "возвращает 204."
+    ),
+    request=None,
+    responses={204: None, 401: DetailSerializer, 403: DetailSerializer, 404: DetailSerializer},
+)
 class FriendRequestDeclineView(APIView):
     """POST /api/friends/requests/{id}/decline — hard delete."""
 
@@ -135,7 +210,15 @@ class FriendRequestDeclineView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Отменить исходящую заявку",
+    description=(
+        "Отменяет собственную исходящую заявку по её id (запись удаляется). "
+        "Отменить можно только заявку, отправленную текущим пользователем."
+    ),
+    responses={204: None, 401: DetailSerializer, 403: DetailSerializer, 404: DetailSerializer},
+)
 class FriendRequestCancelView(APIView):
     """DELETE /api/friends/requests/{id} — отменить свою исходящую."""
 
@@ -146,13 +229,23 @@ class FriendRequestCancelView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Список друзей",
+    description=(
+        "Список друзей текущего пользователя (подтверждённые связи). Каждый "
+        "элемент — встречный пользователь с краткой публичной информацией и "
+        "статусом по поинтам. Пагинация limit/offset."
+    ),
+    responses={200: FriendListItemSerializer(many=True), 401: DetailSerializer},
+)
 class FriendListView(GenericAPIView):
     """GET /api/friends — список друзей."""
 
     permission_classes = _PROTECTED
     pagination_class = LimitOffsetPagination
     serializer_class = FriendListItemSerializer
+    queryset = Friendship.objects.none()  # для генерации схемы drf-spectacular
 
     def get(self, request: Request) -> Response:
         qs = FriendshipService.list_friends(user=request.user)
@@ -162,7 +255,15 @@ class FriendListView(GenericAPIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Удалить из друзей",
+    description=(
+        "Удаляет дружескую связь с пользователем `user_id` (в обе стороны). "
+        "Идемпотентно: если связи нет, всё равно возвращается 204."
+    ),
+    responses={204: None, 401: DetailSerializer, 403: DetailSerializer},
+)
 class FriendRemoveView(APIView):
     """DELETE /api/friends/{user_id} — удалить из друзей."""
 

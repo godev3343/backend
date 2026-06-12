@@ -17,9 +17,21 @@ from apps.users.throttling import EmailVerifyRequestThrottle
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+
+@extend_schema(
+    tags=["auth"],
+    summary="Запросить код верификации email",
+    description=(
+        "Отправляет 6-значный код подтверждения на указанный email. "
+        "Ответ всегда 202 и одинаков независимо от того, существует ли аккаунт — "
+        "так мы не раскрываем наличие email в системе (защита от перебора).\n\n"
+        "Throttling по IP/email."
+    ),
+    request=EmailVerifyRequestSerializer,
+    responses={202: DetailSerializer, 400: DetailSerializer, 429: DetailSerializer},
+)
 class EmailVerifyRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [EmailVerifyRequestThrottle]
@@ -34,7 +46,18 @@ class EmailVerifyRequestView(APIView):
             status=status.HTTP_202_ACCEPTED,
         )
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["auth"],
+    summary="Подтвердить email кодом",
+    description=(
+        "Подтверждает email по паре email + 6-значный код из письма. После "
+        "успешного подтверждения аккаунт активируется и становится доступен "
+        "логин.\n\n"
+        "Возвращает 400, если код неверный или истёк."
+    ),
+    request=EmailVerifyConfirmSerializer,
+    responses={200: DetailSerializer, 400: DetailSerializer},
+)
 class EmailVerifyConfirmView(APIView):
     permission_classes = [AllowAny]
 

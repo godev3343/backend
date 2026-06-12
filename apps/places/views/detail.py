@@ -15,13 +15,23 @@ from apps.places.services.query import build_detail_queryset
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 # Сколько последних чек-инов показывать в карточке места.
 RECENT_CHECKINS_LIMIT = 5
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["places"],
+    summary="Карточка места",
+    description=(
+        "Полная карточка заведения по id: адрес, телефон, часы работы, описание, "
+        "категория, вайбы (отсортированы по весу), обработанные фото и последние "
+        f"{RECENT_CHECKINS_LIMIT} чек-инов.\n\n"
+        "Доступна всем (AllowAny). Возвращает 404, если место не найдено."
+    ),
+    responses={200: PlaceDetailSerializer, 404: DetailSerializer},
+)
 class PlaceDetailView(RetrieveAPIView):
     permission_classes = (AllowAny,)
     serializer_class = PlaceDetailSerializer

@@ -15,10 +15,6 @@ from typing import Literal
 
 from apps.media.models import MediaPurpose
 
-from drf_spectacular.utils import extend_schema
-
-from apps.core.serializers import DetailSerializer, EmptySerializer
-
 # Допустимые MIME-типы → расширения исходника в R2.
 # HEIC принимаем от iOS, конвертируем при процессинге.
 CONTENT_TYPE_TO_EXT: dict[str, str] = {

@@ -7,7 +7,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.events.models import EventAttendance
 from apps.events.serializers import EventAttendanceStateSerializer
 from apps.events.services.attendance import AttendanceService
 from apps.events.services.attendance_queries import friends_attending_qs
@@ -16,14 +15,20 @@ from apps.users.permissions import IsEmailVerified, IsOnboarded
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 # Максимум друзей, отдаваемый в attendance-endpoint.
 # Полный список — отдельный endpoint /attendance/friends (TODO).
 _FRIENDS_LIMIT = 20
 
+_ATTENDANCE_RESPONSES = {
+    200: EventAttendanceStateSerializer,
+    401: DetailSerializer,
+    403: DetailSerializer,
+    404: DetailSerializer,
+}
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+
 class EventAttendanceView(APIView):
     """
     GET    /api/events/{event_id}/attendance/   — состояние для текущего юзера
@@ -37,16 +42,47 @@ class EventAttendanceView(APIView):
 
     permission_classes = [IsAuthenticated, IsEmailVerified, IsOnboarded]
 
+    @extend_schema(
+        tags=["events"],
+        summary="Состояние участия в событии",
+        description=(
+            "Возвращает для текущего пользователя: идёт ли он (`is_going`), общее "
+            "число участников и превью друзей-участников. Требует подтверждённого "
+            "email и онбординга. 404, если событие не найдено."
+        ),
+        responses=_ATTENDANCE_RESPONSES,
+    )
     def get(self, request: Request, event_id: int) -> Response:
         # GET тоже проверяет существование, иначе фронт получает counts=0
         # и не понимает: ивент удалён или просто никто не идёт.
         self._ensure_event_exists(event_id)
         return Response(self._build_state(request.user, event_id))
 
+    @extend_schema(
+        tags=["events"],
+        summary="Отметить «иду» на событие",
+        description=(
+            "Отмечает участие текущего пользователя в событии. Идемпотентно. "
+            "Возвращает обновлённое состояние участия. Требует подтверждённого "
+            "email и онбординга. 404, если событие не найдено."
+        ),
+        request=None,
+        responses=_ATTENDANCE_RESPONSES,
+    )
     def post(self, request: Request, event_id: int) -> Response:
         AttendanceService.mark_going(user=request.user, event_id=event_id)
         return Response(self._build_state(request.user, event_id))
 
+    @extend_schema(
+        tags=["events"],
+        summary="Отменить участие в событии",
+        description=(
+            "Снимает отметку участия текущего пользователя. Идемпотентно. "
+            "Возвращает обновлённое состояние участия. Требует подтверждённого "
+            "email и онбординга. 404, если событие не найдено."
+        ),
+        responses=_ATTENDANCE_RESPONSES,
+    )
     def delete(self, request: Request, event_id: int) -> Response:
         # mark_going бы упал на отсутствующем event, но cancel — нет
         # (на DELETE несуществующего ресурса тоже хочется 404, чтобы

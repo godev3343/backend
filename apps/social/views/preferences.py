@@ -18,10 +18,23 @@ from apps.social.serializers import UserPreferencesSerializer
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["social"],
+    summary="Заменить AI-предпочтения",
+    description=(
+        "Идемпотентная полная замена AI-настроек: `preferred_vibes` (0–5 "
+        "уникальных тегов вайба) и `ai_context` (свободный текст до 500 "
+        "символов). В отличие от частичного `PATCH /api/users/me`, оба поля "
+        "обязательны — это «новое состояние целиком».\n\n"
+        "Используется в онбординге и на экране «AI-предпочтения». Возвращает "
+        "сохранённые значения."
+    ),
+    request=UserPreferencesSerializer,
+    responses={200: UserPreferencesSerializer, 400: DetailSerializer, 401: DetailSerializer},
+)
 class UserPreferencesView(APIView):
     """PUT /api/users/me/preferences."""
 

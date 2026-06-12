@@ -22,6 +22,7 @@ from apps.media.serializers import (
     ConfirmRequestSerializer,
     MediaAssetSerializer,
     PresignRequestSerializer,
+    PresignResponseSerializer,
 )
 from apps.media.services.exceptions import MediaAssetNotFound
 from apps.media.services.upload import UploadService
@@ -29,10 +30,30 @@ from apps.users.permissions import IsEmailVerified
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["media"],
+    summary="Получить presigned URL для загрузки",
+    description=(
+        "Шаг 1 загрузки фото. Создаёт `MediaAsset` и возвращает presigned PUT-URL "
+        "для прямой загрузки файла в R2. Клиент обязан загрузить файл ровно с "
+        "указанными `content_type` и размером — они входят в подпись, иначе R2 "
+        "отклонит загрузку. URL действует `expires_in` секунд.\n\n"
+        "Лимит размера зависит от `purpose` и применяется на бэке. Требует "
+        "подтверждённого email. После успешной загрузки вызовите "
+        "`POST /api/upload/confirm`."
+    ),
+    request=PresignRequestSerializer,
+    responses={
+        201: PresignResponseSerializer,
+        400: DetailSerializer,
+        401: DetailSerializer,
+        403: DetailSerializer,
+        429: DetailSerializer,
+    },
+)
 class PresignView(APIView):
     """
     POST /api/upload/presign
@@ -79,7 +100,26 @@ class PresignView(APIView):
         )
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["media"],
+    summary="Подтвердить загрузку",
+    description=(
+        "Шаг 2 загрузки фото. Подтверждает, что файл залит в R2, и ставит ассет "
+        "в очередь на обработку (генерация feed/thumb-вариантов). Возвращает "
+        "`MediaAsset` со статусом `pending`; после фоновой обработки он станет "
+        "`processed` — опрашивайте `GET /api/media/{id}`.\n\n"
+        "Требует подтверждённого email."
+    ),
+    request=ConfirmRequestSerializer,
+    responses={
+        200: MediaAssetSerializer,
+        400: DetailSerializer,
+        401: DetailSerializer,
+        403: DetailSerializer,
+        404: DetailSerializer,
+        429: DetailSerializer,
+    },
+)
 class ConfirmView(APIView):
     """
     POST /api/upload/confirm
@@ -107,7 +147,18 @@ class ConfirmView(APIView):
         return Response(MediaAssetSerializer(asset).data, status=status.HTTP_200_OK)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["media"],
+    summary="Статус медиа-ассета",
+    description=(
+        "Текущее состояние ассета: статус обработки и готовые URL "
+        "(original/feed/thumb). Используется для опроса после confirm, пока "
+        "статус не станет `processed`.\n\n"
+        "Видеть можно только свои ассеты; чужой id вернёт 404 (а не 403), чтобы "
+        "не подтверждать его существование."
+    ),
+    responses={200: MediaAssetSerializer, 401: DetailSerializer, 404: DetailSerializer},
+)
 class MediaAssetDetailView(APIView):
     """
     GET /api/media/{asset_id}

@@ -21,10 +21,23 @@ from apps.checkins.services import CheckInService
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["checkins"],
+    summary="Создать чек-ин",
+    description=(
+        "Создаёт чек-ин в заведении. Координаты пользователя (`latitude`/"
+        "`longitude`) проверяются на близость к месту (гео-гейт) — слишком "
+        "далёкий чек-ин отклоняется с 400. Опционально можно приложить "
+        "комментарий и фото (`photo_key` из загруженного через `/api/upload/*` "
+        "ассета). За чек-ин начисляются поинты.\n\n"
+        "Возвращает созданный чек-ин."
+    ),
+    request=CheckInCreateSerializer,
+    responses={201: CheckInSerializer, 400: DetailSerializer, 401: DetailSerializer},
+)
 class CheckInCreateView(GenericAPIView):
     """
     POST /api/checkins
@@ -62,7 +75,14 @@ class CheckInCreateView(GenericAPIView):
         return Response(output, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["checkins"],
+    summary="История моих чек-инов",
+    description=(
+        "Лента собственных чек-инов текущего пользователя в обратном "
+        "хронологическом порядке. Cursor-пагинация (параметр `cursor`)."
+    ),
+)
 class MyCheckInsView(ListAPIView):
     """
     GET /api/checkins/me — история своих чек-инов с cursor-пагинацией.

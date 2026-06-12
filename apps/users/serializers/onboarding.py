@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 
@@ -23,10 +24,13 @@ class OnboardingRequestSerializer(serializers.Serializer):
         return value
 
 
+@extend_schema_serializer(component_name="UserMeOnboarding")
 class UserMeSerializer(serializers.Serializer):
     """
     Минимальное представление текущего юзера для ответа на онбординг.
-    Полный UserMeSerializer будет в EPIC 3 — пока достаточно базовых полей.
+
+    Отдельный компонент схемы (UserMeOnboarding), чтобы не конфликтовать с
+    полным apps.social.serializers.user_me.UserMeSerializer (UserMe).
     """
 
     id = serializers.IntegerField()

@@ -29,12 +29,53 @@ from apps.places.services.cache import (
 )
 from apps.places.services.query import build_list_queryset
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["places"],
+    summary="Места на карте (по bbox)",
+    description=(
+        "Список заведений внутри видимой области карты. Доступен всем (AllowAny) "
+        "— карта показывается до регистрации.\n\n"
+        "`bbox` обязателен; `vibe`/`category`/`limit` опциональны. Ответ — "
+        "плоский массив маркеров (без пагинации), максимум 500 мест. "
+        "Результат кэшируется на 60с."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="bbox",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Границы области: `lng_min,lat_min,lng_max,lat_max`.",
+        ),
+        OpenApiParameter(
+            name="vibe",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Фильтр по вайбам — теги через запятую (например `calm,active`).",
+        ),
+        OpenApiParameter(
+            name="category",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Фильтр по slug категории (например `cafe`).",
+        ),
+        OpenApiParameter(
+            name="limit",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Максимум мест в ответе (по умолчанию 200, максимум 500).",
+        ),
+    ],
+    responses={200: PlaceListItemSerializer(many=True), 400: DetailSerializer},
+)
 class PlaceListView(ListAPIView):
     """
     GET /api/places?bbox=lng_min,lat_min,lng_max,lat_max&vibe=calm,active&category=cafe&limit=200

@@ -19,10 +19,30 @@ from apps.users.permissions import IsOnboarded
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["ai"],
+    summary="AI-рекомендации «Куда пойти?»",
+    description=(
+        "По свободному запросу (например, «куда пойти на свидание?») и профилю "
+        "пользователя (`preferred_vibes`, `ai_context`, город) возвращает "
+        "подборку мест с объяснением, почему каждое подходит, и совпавшими "
+        "вайбами. `request_id` — id записи лога запроса.\n\n"
+        "Доступно только онбордированным пользователям. Throttle: 10/час. Под "
+        "капотом — Gemini с fallback на Anthropic; ответ может занимать "
+        "несколько секунд."
+    ),
+    request=AiRecommendRequestSerializer,
+    responses={
+        200: AiRecommendResponseSerializer,
+        400: DetailSerializer,
+        401: DetailSerializer,
+        403: DetailSerializer,
+        429: DetailSerializer,
+    },
+)
 class AiRecommendView(APIView):
     """
     POST /api/ai/recommend

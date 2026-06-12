@@ -14,10 +14,24 @@ from apps.users.serializers import OnboardingRequestSerializer, UserMeSerializer
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["users"],
+    summary="Онбординг профиля",
+    description=(
+        "Заполняет профиль при первом входе: `display_name`, опционально `bio`, "
+        "и обязательное согласие на обработку данных (`consent=true`) — без него "
+        "запрос отклоняется. Проставляет `consent_at` и помечает пользователя как "
+        "онбордированного.\n\n"
+        "Идемпотентно: повторный вызов перезаписывает поля. Аватар грузится "
+        "отдельно через `/api/upload/*` и здесь не принимается. Возвращает "
+        "актуальное представление текущего пользователя."
+    ),
+    request=OnboardingRequestSerializer,
+    responses={200: UserMeSerializer, 400: DetailSerializer, 401: DetailSerializer},
+)
 class OnboardingView(APIView):
     """
     POST /api/users/me/onboarding — заполнить display_name, avatar_url, bio,

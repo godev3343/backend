@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -11,12 +11,21 @@ from rest_framework.views import APIView
 
 from apps.checkins.services import LikeResult, LikeService
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
+
+# Состояние лайка после действия — фронт обновляет UI без доп. запроса.
+_LikeStateSerializer = inline_serializer(
+    name="CheckInLikeState",
+    fields={
+        "checkin_id": serializers.IntegerField(),
+        "is_liked": serializers.BooleanField(),
+        "likes_count": serializers.IntegerField(),
+    },
+)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
 class CheckInLikeView(APIView):
     """
     POST /api/checkins/{id}/like:
@@ -32,6 +41,21 @@ class CheckInLikeView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(
+        tags=["checkins"],
+        summary="Лайкнуть чек-ин",
+        description=(
+            "Ставит лайк на чек-ин. Идемпотентно: первый лайк → 201, повторный → "
+            "200. Возвращает актуальное состояние лайка и счётчик `likes_count`."
+        ),
+        request=None,
+        responses={
+            200: _LikeStateSerializer,
+            201: _LikeStateSerializer,
+            401: DetailSerializer,
+            404: DetailSerializer,
+        },
+    )
     def post(self, request: Request, pk: int) -> Response:
         result = LikeService.like(user=request.user, checkin_id=pk)
         status_code = (
@@ -42,6 +66,16 @@ class CheckInLikeView(APIView):
             status=status_code,
         )
 
+    @extend_schema(
+        tags=["checkins"],
+        summary="Убрать лайк с чек-ина",
+        description=(
+            "Снимает лайк с чек-ина. Идемпотентно: возвращает 200 даже если "
+            "лайка не было. Возвращает актуальное состояние лайка и счётчик "
+            "`likes_count`."
+        ),
+        responses={200: _LikeStateSerializer, 401: DetailSerializer, 404: DetailSerializer},
+    )
     def delete(self, request: Request, pk: int) -> Response:
         LikeService.unlike(user=request.user, checkin_id=pk)
         return Response(

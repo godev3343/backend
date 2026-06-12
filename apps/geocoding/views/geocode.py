@@ -21,9 +21,9 @@ from apps.geocoding.serializers import GeocodeResultSerializer
 from apps.geocoding.services.exceptions import InvalidGeocodingQuery
 from apps.geocoding.services.geocoder import geocode
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
 class GeocodeThrottle(UserRateThrottle):
@@ -57,7 +57,63 @@ def _parse_limit(raw: str | None, default: int = 5, max_value: int = 10) -> int:
     return min(value, max_value)
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["geocoding"],
+    summary="Прямой геокодинг",
+    description=(
+        "Ищет адреса и POI по текстовому запросу через Mapbox. Проксирует "
+        "платный API, поэтому доступен только аутентифицированным пользователям "
+        "и зарезан throttle-scope `geocode` (60/час на пользователя).\n\n"
+        "`proximity` смещает выдачу к указанной точке. По умолчанию язык `ru`, "
+        "страна `kz`. Результаты возвращаются в поле `results`."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="q",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Поисковый запрос (адрес или название места).",
+        ),
+        OpenApiParameter(
+            name="proximity",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Точка для приоритизации результатов: `lng,lat`.",
+        ),
+        OpenApiParameter(
+            name="limit",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Число результатов (1–10, по умолчанию 5).",
+        ),
+        OpenApiParameter(
+            name="language",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Язык результатов (по умолчанию `ru`).",
+        ),
+        OpenApiParameter(
+            name="country",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="ISO-код страны для фильтрации (по умолчанию `kz`).",
+        ),
+    ],
+    responses={
+        200: inline_serializer(
+            name="GeocodeResults",
+            fields={"results": GeocodeResultSerializer(many=True)},
+        ),
+        400: DetailSerializer,
+        401: DetailSerializer,
+        429: DetailSerializer,
+    },
+)
 class GeocodeView(GenericAPIView):
     permission_classes = (IsAuthenticated,)
     throttle_classes = (GeocodeThrottle,)

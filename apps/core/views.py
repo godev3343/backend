@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from django.core.cache import cache
 from django.db import connection
-from rest_framework import status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +13,18 @@ from rest_framework.views import APIView
 from apps.core.serializers import HealthSerializer, ReadinessSerializer
 
 
+@extend_schema(
+    tags=["system"],
+    summary="Liveness probe",
+    description=(
+        "Проверка, что приложение запущено и отвечает. Намеренно не обращается "
+        "к БД, кэшу или другим зависимостям — отвечает мгновенно (`{\"status\": "
+        "\"ok\"}`) даже при недоступных зависимостях. Используется балансировщиком "
+        "как liveness-проба."
+    ),
+    responses={200: HealthSerializer},
+    auth=[],
+)
 class HealthView(APIView):
     """Liveness — приложение запущено и отвечает.
 
@@ -28,6 +41,34 @@ class HealthView(APIView):
         return Response({"status": "ok"})
 
 
+@extend_schema(
+    tags=["system"],
+    summary="Readiness probe",
+    description=(
+        "Проверка доступности критичных зависимостей. БД — критична: при её "
+        "недоступности статус `degraded` и код 503 (балансировщик не пускает "
+        "трафик). Redis проверяется для наблюдаемости, но на статус не влияет.\n\n"
+        "Возвращает `status` и пословный результат по каждой зависимости в "
+        "`checks`."
+    ),
+    responses={
+        200: inline_serializer(
+            name="Readiness",
+            fields={
+                "status": serializers.CharField(),
+                "checks": serializers.DictField(child=serializers.CharField()),
+            },
+        ),
+        503: inline_serializer(
+            name="ReadinessDegraded",
+            fields={
+                "status": serializers.CharField(),
+                "checks": serializers.DictField(child=serializers.CharField()),
+            },
+        ),
+    },
+    auth=[],
+)
 class ReadinessView(APIView):
     """Readiness — критичные зависимости доступны.
 

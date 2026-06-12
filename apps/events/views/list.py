@@ -15,12 +15,41 @@ from apps.events.filters import parse_list_query
 from apps.events.serializers import EventListItemSerializer
 from apps.events.services.query import build_list_queryset
 
-from drf_spectacular.utils import extend_schema
-
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["events"],
+    summary="Афиша событий",
+    description=(
+        "Список событий афиши. Доступен всем (AllowAny). Можно фильтровать по "
+        "диапазону дат (`from`/`to`) и видимой области карты (`bbox`). "
+        "Пагинация limit/offset."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="from",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Нижняя граница по времени начала (ISO 8601).",
+        ),
+        OpenApiParameter(
+            name="to",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Верхняя граница по времени начала (ISO 8601).",
+        ),
+        OpenApiParameter(
+            name="bbox",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Границы области: `lng_min,lat_min,lng_max,lat_max`.",
+        ),
+    ],
+)
 class EventListView(ListAPIView):
     """
     GET /api/events?from=...&to=...&bbox=...&limit=50&offset=0

@@ -17,10 +17,20 @@ from apps.users.throttling import PasswordResetRequestThrottle
 
 from drf_spectacular.utils import extend_schema
 
-from apps.core.serializers import DetailSerializer, EmptySerializer
+from apps.core.serializers import DetailSerializer
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["auth"],
+    summary="Запросить сброс пароля",
+    description=(
+        "Отправляет на email ссылку/токен для сброса пароля. Ответ всегда 202 и "
+        "не зависит от существования аккаунта — наличие email не раскрывается.\n\n"
+        "Throttling по IP/email."
+    ),
+    request=PasswordResetRequestSerializer,
+    responses={202: DetailSerializer, 400: DetailSerializer, 429: DetailSerializer},
+)
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetRequestThrottle]
@@ -35,7 +45,18 @@ class PasswordResetRequestView(APIView):
         )
 
 
-@extend_schema(request=EmptySerializer, responses=DetailSerializer, tags=["auth"])
+@extend_schema(
+    tags=["auth"],
+    summary="Подтвердить сброс пароля",
+    description=(
+        "Устанавливает новый пароль по токену из письма. Новый пароль проходит "
+        "валидаторы Django (минимум 8 символов, не слишком простой).\n\n"
+        "Возвращает 400, если токен неверный, истёк или пароль не прошёл "
+        "валидацию."
+    ),
+    request=PasswordResetConfirmSerializer,
+    responses={200: DetailSerializer, 400: DetailSerializer},
+)
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
 
