@@ -149,6 +149,8 @@ DEBUG = env.debug
 ALLOWED_HOSTS = _parse_list(env.allowed_hosts) or ["*"]
 
 INSTALLED_APPS = [
+    # daphne — первым: переопределяет runserver на ASGI (нужно для WebSocket).
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -158,6 +160,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "django.contrib.postgres",
     # Third-party
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -169,6 +172,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.social",
+    "apps.chat",
     "apps.places",
     "apps.checkins",
     "apps.feed",
@@ -255,6 +259,24 @@ CACHES = {
 
 DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
 DJANGO_REDIS_LOGGER = "django_redis"
+
+# ---------- Channels (WebSocket realtime для чата) ---------------------------
+# Транспорт group_send между процессами — Redis (тот же, что cache/Celery,
+# но channels_redis держит отдельный namespace ключей `asgi:*`).
+# В тестах переопределяется на InMemoryChannelLayer (config/settings/test.py).
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [env.redis_url],
+            # expiry: сколько сообщение живёт в очереди группы, если получатель
+            # не читает (сек). Для realtime-чата короткий — устаревшие события
+            # не нужны, клиент дочитывает пропущенное через REST.
+            "expiry": 10,
+        },
+    }
+}
 
 # ---------- Celery ----------------------------------------------------------
 
@@ -378,6 +400,14 @@ SPECTACULAR_SETTINGS = {
             ),
         },
         {
+            "name": "chat",
+            "description": (
+                "Личные переписки между друзьями: список чатов, история "
+                "сообщений и создание переписки. Realtime (отправка, статусы "
+                "доставки/прочтения, «печатает») — по WebSocket `/ws/chat`."
+            ),
+        },
+        {
             "name": "media",
             "description": (
                 "Загрузка фото в Cloudflare R2 по presigned PUT-URL: presign → "
@@ -398,8 +428,7 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "checkins",
             "description": (
-                "Чек-ины в заведениях (гео-гейт), история своих чек-инов, "
-                "лента друзей и лайки."
+                "Чек-ины в заведениях (гео-гейт), история своих чек-инов, лента друзей и лайки."
             ),
         },
         {

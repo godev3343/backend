@@ -9,23 +9,20 @@ case "${1:-web}" in
     exec python manage.py migrate --noinput
     ;;
   web)
-    echo "[entrypoint] starting gunicorn on :${PORT:-8000}"
-    # --preload: грузим Django ДО fork worker'ов. Один разогрев импортов
-    #   на весь контейнер, меньше памяти (CoW), и предсказуемый старт.
-    #   Минус — нельзя hot-reload, но в проде это и не нужно.
-    # %(L)s в access-logformat — request time в секундах, нужен для дебага latency.
-    exec gunicorn config.wsgi:application \
-      --bind "0.0.0.0:${PORT:-8000}" \
-      --workers "${WEB_CONCURRENCY:-2}" \
-      --threads 2 \
-      --worker-class gthread \
-      --timeout 60 \
-      --preload \
-      --access-logfile - \
-      --access-logformat '%(h)s "%(r)s" %(s)s %(b)s %(L)ss "%(a)s"' \
-      --error-logfile - \
-      --capture-output \
-      --enable-stdio-inheritance
+    echo "[entrypoint] starting daphne (ASGI: HTTP + WebSocket) on :${PORT:-8000}"
+    # Сервим через daphne (ASGI), а не gunicorn (WSGI), потому что чату нужен
+    # WebSocket (/ws/chat) на том же домене. daphne обслуживает и обычный HTTP
+    # (Django-вьюхи + WhiteNoise-статика), и WS (Channels) одним процессом.
+    # --proxy-headers: Railway терминирует TLS и проксирует — доверяем
+    #   X-Forwarded-* (схема/IP); SECURE_PROXY_SSL_HEADER в prod.py это учитывает.
+    # Один async-процесс тянет realtime-чат MVP; для горизонтального масштаба
+    # поднимаем несколько инстансов — group_send идёт через Redis channel layer.
+    exec daphne \
+      -b 0.0.0.0 \
+      -p "${PORT:-8000}" \
+      --proxy-headers \
+      --access-log - \
+      config.asgi:application
     ;;
   worker)
     exec celery -A config worker -l info -Q default,media,ai \

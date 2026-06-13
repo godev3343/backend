@@ -3,6 +3,9 @@
 from .base import *
 from .base import DATABASES
 
+# Channels — in-memory, чтобы тесты consumer'а не требовали Redis.
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
 # Celery — eager (синхронно)
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
