@@ -11,9 +11,11 @@ from PIL import Image
 from apps.media.models import (
     MediaAsset,
     MediaFailureReason,
+    MediaPurpose,
     MediaStatus,
 )
-from apps.media.tasks import process_image
+from apps.media.services.video import VideoProcessingError
+from apps.media.tasks import process_image, process_video
 from apps.media.tests.factories import MediaAssetFactory
 
 
@@ -21,6 +23,13 @@ def _make_jpeg_bytes(width: int = 1500, height: int = 1000) -> bytes:
     img = Image.new("RGB", (width, height), color=(50, 100, 150))
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
+
+
+def _make_png_bytes(width: int = 1280, height: int = 720) -> bytes:
+    img = Image.new("RGB", (width, height), color=(10, 20, 30))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
     return buf.getvalue()
 
 
@@ -131,3 +140,68 @@ class TestProcessImage:
     def test_unknown_asset_id(self, fake_r2) -> None:  # type: ignore[no-untyped-def]
         process_image(999_999)
         assert MediaAsset.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestProcessVideo:
+    @staticmethod
+    def _video_asset() -> MediaAsset:
+        asset = MediaAssetFactory(status=MediaStatus.PENDING, purpose=MediaPurpose.POST_VIDEO)
+        asset.key_original = f"post_videos/{asset.owner_id}/vid123/original.mp4"
+        asset.save(update_fields=["key_original"])
+        return asset
+
+    def test_happy_path_generates_poster(self, fake_r2) -> None:  # type: ignore[no-untyped-def]
+        asset = self._video_asset()
+        fake_r2[asset.key_original] = b"fake-mp4-bytes"
+
+        with patch(
+            "apps.media.tasks.extract_poster_frame",
+            return_value=_make_png_bytes(1280, 720),
+        ):
+            process_video(asset.pk)
+
+        asset.refresh_from_db()
+        assert asset.status == MediaStatus.PROCESSED
+
+        prefix = f"post_videos/{asset.owner_id}/vid123"
+        assert asset.key_feed == f"{prefix}/feed.webp"
+        assert asset.key_thumb == f"{prefix}/thumb.webp"
+        # Оригинал-mp4 НЕ перезаписывается.
+        assert asset.key_original == f"{prefix}/original.mp4"
+        assert asset.width == 1280
+        assert asset.height == 720
+        assert asset.processed_at is not None
+
+        assert f"{prefix}/feed.webp" in fake_r2
+        assert f"{prefix}/thumb.webp" in fake_r2
+        assert asset.key_original in fake_r2  # оригинал на месте
+
+    def test_source_missing(self, fake_r2) -> None:  # type: ignore[no-untyped-def]
+        asset = self._video_asset()
+
+        process_video(asset.pk)
+
+        asset.refresh_from_db()
+        assert asset.status == MediaStatus.FAILED
+        assert asset.failure_reason == MediaFailureReason.SOURCE_MISSING
+
+    def test_ffmpeg_failure_marks_failed(self, fake_r2) -> None:  # type: ignore[no-untyped-def]
+        asset = self._video_asset()
+        fake_r2[asset.key_original] = b"not-a-real-video"
+
+        with patch(
+            "apps.media.tasks.extract_poster_frame",
+            side_effect=VideoProcessingError("ffmpeg boom"),
+        ):
+            process_video(asset.pk)
+
+        asset.refresh_from_db()
+        assert asset.status == MediaStatus.FAILED
+        assert asset.failure_reason == MediaFailureReason.INVALID_FORMAT
+
+    def test_idempotent_on_processed(self, fake_r2) -> None:  # type: ignore[no-untyped-def]
+        asset = MediaAssetFactory(status=MediaStatus.PROCESSED, purpose=MediaPurpose.POST_VIDEO)
+        with patch("apps.media.tasks.download_to_bytes") as dl:
+            process_video(asset.pk)
+            dl.assert_not_called()

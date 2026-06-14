@@ -2,9 +2,9 @@
 PostService — лента, создание постов (сборка медиа из ключей), просмотры, репосты.
 
 Контракт медиа: клиент грузит файлы существующим media-пайплайном
-(presign→R2→confirm) и передаёт сюда только КЛЮЧИ. Для image asset обязан быть
-PROCESSED (есть feed-вариант и размеры), для video — PROCESSED ставится сразу на
-confirm (без обработки), url = оригинал, постер пока пустой.
+(presign→R2→confirm) и передаёт сюда только КЛЮЧИ. Asset обязан быть PROCESSED:
+для image это feed-вариант + размеры; для video — постер (ffmpeg-кадр в key_feed)
++ размеры кадра. url видео = оригинал (mp4), thumbnail_url = постер (url_feed).
 """
 
 from __future__ import annotations
@@ -146,7 +146,16 @@ class PostService:
     @staticmethod
     def _resolve_asset(*, user: User, key: str, media_type: str) -> MediaAsset:
         purpose = _TYPE_TO_PURPOSE[media_type]
-        asset = MediaAsset.objects.filter(key_original=key, owner=user, purpose=purpose).first()
+        # Клиент шлёт presign-ключ (.../{uuid}/original.jpg). process_image мог
+        # переписать оригинал в .webp при даунскейле (>2048px), поэтому матчим
+        # по префиксу ассета (.../{uuid}/), а не по точному имени файла. uuid
+        # уникален на presign — коллизий нет. Видео-ключ не переписывается.
+        prefix = key.rsplit("/", 1)[0] + "/"
+        asset = (
+            MediaAsset.objects.filter(key_original__startswith=prefix, owner=user, purpose=purpose)
+            .order_by("pk")
+            .first()
+        )
         if asset is None:
             raise PostMediaNotFound()
         if asset.status != MediaStatus.PROCESSED:
@@ -162,8 +171,10 @@ class PostService:
 
     @staticmethod
     def _media_thumbnail(*, asset: MediaAsset, media_type: str) -> str:
-        # Постер для видео генерится на будущее (ffmpeg). Пока пусто — клиент
-        # показывает тёмную плитку с play. Для фото thumbnail не нужен.
+        # Видео: постер — feed-вариант кадра (process_video кладёт его в key_feed,
+        # ~1080px). Фото: thumbnail не нужен, клиент берёт url.
+        if media_type == PostMediaType.VIDEO:
+            return asset.url_feed if asset.key_feed else ""
         return ""
 
     @staticmethod

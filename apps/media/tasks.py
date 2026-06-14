@@ -41,6 +41,7 @@ from apps.media.services.imaging import (
     process,
 )
 from apps.media.services.keys import build_variant_key
+from apps.media.services.video import VideoProcessingError, extract_poster_frame
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +244,129 @@ def process_image(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
 
     logger.info(
         "process_image done: asset_id=%s feed=%s thumb=%s",
+        asset_id,
+        feed_key,
+        thumb_key,
+    )
+
+
+# Минимальная короткая сторона для постера видео — не отбраковываем мелкие
+# кадры (в отличие от фото): даже низкое разрешение лучше пустой плитки.
+_VIDEO_POSTER_MIN_SHORT_SIDE = 1
+
+
+@shared_task(
+    bind=True,
+    queue="media",
+    name="apps.media.tasks.process_video",
+    max_retries=3,
+    autoretry_for=(BotoCoreError, IOError, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
+)
+def process_video(self, asset_id: int) -> None:  # type: ignore[no-untyped-def]
+    """
+    Постер для видео-поста.
+
+    Шаги:
+    1. Загружаем asset, идемпотентный выход если PROCESSED.
+    2. Скачиваем оригинал (mp4) из R2.
+    3. ffmpeg → первый кадр (PNG).
+    4. Прогоняем кадр через Pillow-пайплайн (тот же, что фото) → feed/thumb webp.
+    5. Заливаем feed/thumb (постер), оригинал-mp4 НЕ трогаем.
+    6. PROCESSED + key_feed/key_thumb + width/height (размеры кадра = видео).
+
+    width/height кадра дают aspect_ratio плитки. thumbnail_url поста = url_feed.
+    """
+    try:
+        asset = MediaAsset.objects.get(pk=asset_id)
+    except MediaAsset.DoesNotExist:
+        logger.warning("process_video: asset_id=%s not found, skipping", asset_id)
+        return
+
+    if asset.status == MediaStatus.PROCESSED:
+        logger.info("process_video: asset_id=%s already processed", asset_id)
+        return
+
+    purpose = asset.purpose
+    owner_id = asset.owner_id
+    asset_uuid = _parse_asset_uuid(asset.key_original)
+
+    # ---- 1. download ----------------------------------------------------
+    try:
+        source_bytes = download_to_bytes(asset.key_original)
+    except R2ObjectNotFound:
+        logger.error(
+            "process_video: source missing asset_id=%s key=%s",
+            asset_id,
+            asset.key_original,
+        )
+        _mark_failed(asset_id, MediaFailureReason.SOURCE_MISSING)
+        return
+
+    # ---- 2. extract poster frame ---------------------------------------
+    try:
+        frame_bytes = extract_poster_frame(source_bytes)
+    except VideoProcessingError as exc:
+        logger.warning("process_video: ffmpeg failed asset_id=%s err=%s", asset_id, exc)
+        _mark_failed(asset_id, MediaFailureReason.INVALID_FORMAT)
+        return
+
+    # ---- 3. frame → webp variants --------------------------------------
+    try:
+        result = process(frame_bytes, min_short_side=_VIDEO_POSTER_MIN_SHORT_SIDE)
+    except ImageProcessingError as exc:
+        logger.warning("process_video: bad frame asset_id=%s err=%s", asset_id, exc)
+        _mark_failed(asset_id, MediaFailureReason.PROCESSING_ERROR)
+        return
+
+    feed_key = build_variant_key(
+        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid, variant="feed"
+    )
+    thumb_key = build_variant_key(
+        purpose=purpose, owner_id=owner_id, asset_uuid=asset_uuid, variant="thumb"
+    )
+
+    # ---- 4. upload poster variants -------------------------------------
+    uploaded_keys: list[str] = []
+    try:
+        upload_bytes(key=feed_key, data=result.feed.data, content_type="image/webp")
+        uploaded_keys.append(feed_key)
+        upload_bytes(key=thumb_key, data=result.thumb.data, content_type="image/webp")
+        uploaded_keys.append(thumb_key)
+    except R2Error:
+        logger.exception("process_video: r2 upload failed asset_id=%s", asset_id)
+        _mark_failed(
+            asset_id,
+            MediaFailureReason.PROCESSING_ERROR,
+            delete_uploaded_keys=uploaded_keys,
+        )
+        return
+
+    # ---- 5. update asset (key_original = mp4 остаётся) ------------------
+    updated = MediaAsset.objects.filter(pk=asset_id, status=MediaStatus.PENDING).update(
+        status=MediaStatus.PROCESSED,
+        key_feed=feed_key,
+        key_thumb=thumb_key,
+        width=result.source_width,
+        height=result.source_height,
+        processed_at=timezone.now(),
+    )
+
+    if updated == 0:
+        logger.warning(
+            "process_video: asset_id=%s status changed during processing, cleanup",
+            asset_id,
+        )
+        try:
+            delete_objects([feed_key, thumb_key])
+        except R2Error:
+            logger.exception("cleanup after race failed asset_id=%s", asset_id)
+        return
+
+    logger.info(
+        "process_video done: asset_id=%s feed=%s thumb=%s",
         asset_id,
         feed_key,
         thumb_key,

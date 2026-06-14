@@ -125,7 +125,9 @@ class TestPresign:
         assert asset.key_original.startswith(f"reviews/{user.pk}/")
 
     def test_unconfigured_purpose_raises_clear_error(
-            self, r2_mock, settings,
+        self,
+        r2_mock,
+        settings,
     ) -> None:  # type: ignore[no-untyped-def]
         """Если purpose валиден в enum, но нет в UPLOAD_MAX_SIZE — PurposeNotConfigured, не UnsupportedContentType."""
         # Симулируем сломанный конфиг: убираем review из словаря
@@ -253,8 +255,11 @@ class TestConfirm:
         ):
             UploadService.confirm(user=user, asset_id=asset.pk)
 
-    def test_confirm_video_marks_processed_without_task(self) -> None:
-        """Видео не идёт в Pillow-пайплайн: confirm сразу ставит PROCESSED."""
+    def test_confirm_video_routes_to_process_video(
+        self,
+        django_capture_on_commit_callbacks,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """Видео идёт в process_video (ffmpeg-постер), НЕ в process_image."""
         user = UserFactory()
         asset = MediaAssetFactory(
             owner=user,
@@ -271,15 +276,23 @@ class TestConfirm:
                     "etag": "x",
                 },
             ),
-            patch("apps.media.services.upload.process_image") as task_mock,
+            patch("apps.media.services.upload.process_video") as vtask,
+            patch("apps.media.services.upload.process_image") as itask,
         ):
-            UploadService.confirm(user=user, asset_id=asset.pk)
+            vtask.apply_async.return_value.id = "vid-task"
+            with django_capture_on_commit_callbacks(execute=True) as callbacks:
+                UploadService.confirm(user=user, asset_id=asset.pk)
 
-        task_mock.apply_async.assert_not_called()
+        assert len(callbacks) == 1
+        vtask.apply_async.assert_called_once()
+        itask.apply_async.assert_not_called()
+
         asset.refresh_from_db()
-        assert asset.status == MediaStatus.PROCESSED
+        # Вариант А: asset остаётся PENDING до готовности постера (process_video
+        # замокана и реально не отработала). source_bytes и task_id проставлены.
+        assert asset.status == MediaStatus.PENDING
         assert asset.source_bytes == 5000
-        assert asset.processed_at is not None
+        assert asset.task_id == "vid-task"
 
     def test_confirm_idempotent_on_processed(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
         """Повторный confirm на PROCESSED — no-op, без новой задачи."""

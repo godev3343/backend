@@ -25,7 +25,7 @@ ENV PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=config.settings.prod
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 gdal-bin libgdal36 binutils libproj25 \
+    libpq5 gdal-bin libgdal36 binutils libproj25 ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 

@@ -51,6 +51,8 @@ class AppSettings(BaseSettings):
     upload_max_size_post_video: int = 100 * 1024 * 1024
     upload_presign_ttl: int = 300
     media_min_short_side: int = 400
+    # Путь к ffmpeg для генерации постера видео. Системный бинарь (Dockerfile).
+    ffmpeg_bin: str = "ffmpeg"
 
     # AI
     ai_provider: str = "gemini"
@@ -119,6 +121,7 @@ UPLOAD_MAX_SIZE: dict[str, int] = {
 }
 UPLOAD_PRESIGN_TTL = env.upload_presign_ttl
 MEDIA_MIN_SHORT_SIDE = env.media_min_short_side
+FFMPEG_BIN = env.ffmpeg_bin
 
 # ---------- AI -----------------------------------------------------------
 

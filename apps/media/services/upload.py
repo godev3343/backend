@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
 from apps.media.models import MediaAsset, MediaStatus
 from apps.media.r2 import (
@@ -49,7 +48,7 @@ from apps.media.services.keys import (
     is_video_purpose,
     new_asset_uuid,
 )
-from apps.media.tasks import process_image
+from apps.media.tasks import process_image, process_video
 
 if TYPE_CHECKING:
     from apps.users.models import User
@@ -218,36 +217,21 @@ class UploadService:
                 message=(f"Uploaded file size {content_length} exceeds limit {max_size}.")
             )
 
+        # task_id выставит задача — здесь только обновим source_bytes,
+        # оставим PENDING до завершения обработки.
         asset.source_bytes = content_length
-
-        # Видео не проходит через Pillow-пайплайн (process_image декодирует
-        # картинку и упал бы). Постер/транскод — на будущее (ffmpeg в Celery).
-        # Здесь, проверив что файл реально загружен (HEAD выше), сразу помечаем
-        # asset готовым, чтобы создание поста его приняло. width/height = 0 →
-        # клиент возьмёт дефолтный aspect_ratio.
-        if is_video_purpose(asset.purpose):
-            asset.status = MediaStatus.PROCESSED
-            asset.processed_at = timezone.now()
-            asset.save(update_fields=["source_bytes", "status", "processed_at"])
-            logger.info(
-                "confirm accepted (video, no processing): asset_id=%s size=%d type=%s",
-                asset.pk,
-                content_length,
-                content_type,
-            )
-            return asset
-
-        # task_id выставит задача (process_image) — здесь только обновим
-        # source_bytes и оставим PENDING.
         asset.save(update_fields=["source_bytes"])
 
-        # Ставим задачу. apply_async вернёт AsyncResult, оттуда возьмём id.
-        # transaction.on_commit гарантирует, что задача стартанёт ТОЛЬКО
-        # после успешного коммита транзакции — иначе воркер может схватить
-        # asset раньше, чем он закоммитится в БД.
+        # Видео и фото идут разными задачами: фото — Pillow (process_image),
+        # видео — ffmpeg-постер (process_video). Pillow упал бы на mp4, поэтому
+        # маршрутизируем по purpose.
+        # transaction.on_commit гарантирует старт задачи ТОЛЬКО после коммита —
+        # иначе воркер может схватить asset раньше, чем он в БД.
+        is_video = is_video_purpose(asset.purpose)
+
         def _enqueue() -> None:
-            result = process_image.apply_async(args=[asset.pk], queue="media")
-            # Записываем task_id уже вне select_for_update-транзакции
+            task = process_video if is_video else process_image
+            result = task.apply_async(args=[asset.pk], queue="media")
             MediaAsset.objects.filter(pk=asset.pk).update(task_id=result.id)
 
         transaction.on_commit(_enqueue)
