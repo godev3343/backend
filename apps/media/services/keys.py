@@ -21,7 +21,18 @@ CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "image/webp": "webp",
     "image/heic": "heic",
     "image/heif": "heif",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
 }
+
+# Видео-контент: грузится тем же presign→confirm-пайплайном, но НЕ проходит
+# через Pillow-обработку (см. UploadService.confirm). Постер/транскод — на
+# будущее (ffmpeg в Celery), сейчас оригинал отдаётся как есть.
+VIDEO_CONTENT_TYPES: frozenset[str] = frozenset({"video/mp4", "video/quicktime"})
+
+# Назначения, ожидающие видео. Для них confirm не ставит process_image и
+# сразу помечает asset PROCESSED.
+VIDEO_PURPOSES: frozenset[str] = frozenset({MediaPurpose.POST_VIDEO.value})
 
 Variant = Literal["original", "feed", "thumb"]
 
@@ -30,6 +41,22 @@ _SAFE_KEY_RE = re.compile(r"^[a-z0-9/_.\-]+$")
 
 def is_supported_content_type(content_type: str) -> bool:
     return content_type in CONTENT_TYPE_TO_EXT
+
+
+def is_video_content_type(content_type: str) -> bool:
+    return content_type in VIDEO_CONTENT_TYPES
+
+
+def is_video_purpose(purpose: str) -> bool:
+    return purpose in VIDEO_PURPOSES
+
+
+def content_type_matches_purpose(*, content_type: str, purpose: str) -> bool:
+    """
+    Видео-типы допустимы только для видео-purpose и наоборот. Защищает от
+    заливки видео в avatar/checkin (Pillow упал бы) и фото в post_video.
+    """
+    return is_video_content_type(content_type) == is_video_purpose(purpose)
 
 
 def new_asset_uuid() -> str:

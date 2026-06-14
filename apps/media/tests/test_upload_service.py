@@ -141,6 +141,40 @@ class TestPresign:
                 content_length=1000,
             )
 
+    def test_video_for_post_video_ok(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
+        user = UserFactory()
+        result = UploadService.presign(
+            user=user,
+            purpose=MediaPurpose.POST_VIDEO,
+            content_type="video/mp4",
+            content_length=2_000_000,
+        )
+        asset = MediaAsset.objects.get(pk=result.asset_id)
+        assert asset.purpose == MediaPurpose.POST_VIDEO
+        assert asset.key_original.endswith("/original.mp4")
+
+    def test_video_for_image_purpose_rejected(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
+        user = UserFactory()
+        with pytest.raises(UnsupportedContentType):
+            UploadService.presign(
+                user=user,
+                purpose=MediaPurpose.POST_IMAGE,
+                content_type="video/mp4",
+                content_length=1000,
+            )
+        assert MediaAsset.objects.count() == 0
+
+    def test_image_for_video_purpose_rejected(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
+        user = UserFactory()
+        with pytest.raises(UnsupportedContentType):
+            UploadService.presign(
+                user=user,
+                purpose=MediaPurpose.POST_VIDEO,
+                content_type="image/jpeg",
+                content_length=1000,
+            )
+        assert MediaAsset.objects.count() == 0
+
 
 @pytest.mark.django_db
 class TestConfirm:
@@ -218,6 +252,34 @@ class TestConfirm:
             pytest.raises(FileTooLarge),
         ):
             UploadService.confirm(user=user, asset_id=asset.pk)
+
+    def test_confirm_video_marks_processed_without_task(self) -> None:
+        """Видео не идёт в Pillow-пайплайн: confirm сразу ставит PROCESSED."""
+        user = UserFactory()
+        asset = MediaAssetFactory(
+            owner=user,
+            purpose=MediaPurpose.POST_VIDEO,
+            key_original=f"post_videos/{user.pk}/abc/original.mp4",
+        )
+
+        with (
+            patch(
+                "apps.media.services.upload.head_object",
+                return_value={
+                    "content_length": 5000,
+                    "content_type": "video/mp4",
+                    "etag": "x",
+                },
+            ),
+            patch("apps.media.services.upload.process_image") as task_mock,
+        ):
+            UploadService.confirm(user=user, asset_id=asset.pk)
+
+        task_mock.apply_async.assert_not_called()
+        asset.refresh_from_db()
+        assert asset.status == MediaStatus.PROCESSED
+        assert asset.source_bytes == 5000
+        assert asset.processed_at is not None
 
     def test_confirm_idempotent_on_processed(self, r2_mock) -> None:  # type: ignore[no-untyped-def]
         """Повторный confirm на PROCESSED — no-op, без новой задачи."""

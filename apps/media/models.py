@@ -30,6 +30,8 @@ class MediaPurpose(models.TextChoices):
     CHECKIN = "checkin", "Check-in photo"
     PLACE = "place", "Place photo"
     REVIEW = "review", "Review"
+    POST_IMAGE = "post_image", "Community post image"
+    POST_VIDEO = "post_video", "Community post video"
 
 
 class MediaStatus(models.TextChoices):

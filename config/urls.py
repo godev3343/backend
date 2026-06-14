@@ -21,4 +21,5 @@ urlpatterns = [
     path("api/", include("apps.ai.urls", namespace="ai")),
     path("api/", include("apps.gamification.urls", namespace="gamification")),
     path("api/", include("apps.reviews.urls", namespace="reviews")),
+    path("api/", include("apps.community.urls", namespace="community")),
 ]

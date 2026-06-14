@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from apps.media.models import MediaAsset, MediaStatus
 from apps.media.r2 import (
@@ -43,7 +44,9 @@ from apps.media.services.exceptions import (
 )
 from apps.media.services.keys import (
     build_original_key,
+    content_type_matches_purpose,
     is_supported_content_type,
+    is_video_purpose,
     new_asset_uuid,
 )
 from apps.media.tasks import process_image
@@ -105,6 +108,11 @@ class UploadService:
         """
         if not is_supported_content_type(content_type):
             raise UnsupportedContentType()
+
+        if not content_type_matches_purpose(content_type=content_type, purpose=purpose):
+            raise UnsupportedContentType(
+                message=f"Content-Type '{content_type}' is not allowed for purpose '{purpose}'."
+            )
 
         if content_length <= 0:
             raise FileTooSmall()
@@ -211,6 +219,24 @@ class UploadService:
             )
 
         asset.source_bytes = content_length
+
+        # Видео не проходит через Pillow-пайплайн (process_image декодирует
+        # картинку и упал бы). Постер/транскод — на будущее (ffmpeg в Celery).
+        # Здесь, проверив что файл реально загружен (HEAD выше), сразу помечаем
+        # asset готовым, чтобы создание поста его приняло. width/height = 0 →
+        # клиент возьмёт дефолтный aspect_ratio.
+        if is_video_purpose(asset.purpose):
+            asset.status = MediaStatus.PROCESSED
+            asset.processed_at = timezone.now()
+            asset.save(update_fields=["source_bytes", "status", "processed_at"])
+            logger.info(
+                "confirm accepted (video, no processing): asset_id=%s size=%d type=%s",
+                asset.pk,
+                content_length,
+                content_type,
+            )
+            return asset
+
         # task_id выставит задача (process_image) — здесь только обновим
         # source_bytes и оставим PENDING.
         asset.save(update_fields=["source_bytes"])

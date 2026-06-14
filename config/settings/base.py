@@ -47,6 +47,8 @@ class AppSettings(BaseSettings):
     upload_max_size_checkin: int = 20 * 1024 * 1024
     upload_max_size_place: int = 20 * 1024 * 1024
     upload_max_size_review: int = 20 * 1024 * 1024
+    upload_max_size_post_image: int = 20 * 1024 * 1024
+    upload_max_size_post_video: int = 100 * 1024 * 1024
     upload_presign_ttl: int = 300
     media_min_short_side: int = 400
 
@@ -112,6 +114,8 @@ UPLOAD_MAX_SIZE: dict[str, int] = {
     "checkin": env.upload_max_size_checkin,
     "place": env.upload_max_size_place,
     "review": env.upload_max_size_review,
+    "post_image": env.upload_max_size_post_image,
+    "post_video": env.upload_max_size_post_video,
 }
 UPLOAD_PRESIGN_TTL = env.upload_presign_ttl
 MEDIA_MIN_SHORT_SIDE = env.media_min_short_side
@@ -182,6 +186,7 @@ INSTALLED_APPS = [
     "apps.ai",
     "apps.geocoding",
     "apps.reviews",
+    "apps.community",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -350,6 +355,9 @@ REST_FRAMEWORK = {
         "upload_confirm": "120/hour",
         "ai_recommend": "10/hour",
         "geocode": "60/hour",
+        "post_create": "60/hour",
+        "post_comment": "120/hour",
+        "post_interact": "600/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.exception_handler.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -436,6 +444,13 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Отзывы о заведениях: создание/редактирование своего отзыва, "
                 "список отзывов места и лайки отзывов."
+            ),
+        },
+        {
+            "name": "community",
+            "description": (
+                "Сообщество: лента постов (друзья/все), посты с фото и видео, "
+                "плоские комментарии, лайки, репосты и просмотры."
             ),
         },
         {
