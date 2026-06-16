@@ -22,4 +22,6 @@ urlpatterns = [
     path("api/", include("apps.gamification.urls", namespace="gamification")),
     path("api/", include("apps.reviews.urls", namespace="reviews")),
     path("api/", include("apps.community.urls", namespace="community")),
+    # Deep linking: .well-known/* и landing-страницы шаринга — в корне, не /api/.
+    path("", include("apps.deeplinks.urls", namespace="deeplinks")),
 ]

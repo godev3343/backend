@@ -82,6 +82,19 @@ class AppSettings(BaseSettings):
     # CORS
     cors_allowed_origins: str = ""
 
+    # Deep linking (Android App Links + landing-страницы шаринга)
+    # deeplink_domain — host без https:// и без слешей (сейчас Railway, потом
+    # купленный домен). Пустой = шаринг-ссылки/landing работают, но assetlinks
+    # отдаёт 404 (см. apps/deeplinks/views.py).
+    deeplink_domain: str = ""
+    # applicationId Android-приложения (для assetlinks target.package_name).
+    android_package_name: str = ""
+    # SHA256-отпечаток(и) подписи через запятую (debug + release). Заглавный hex
+    # с двоеточиями, как выдаёт keytool.
+    android_cert_fingerprints: str = ""
+    # Ссылка на приложение в Google Play — для кнопки/редиректа на landing.
+    play_store_url: str = ""
+
 
 def _parse_list(raw: str) -> list[str]:
     """Превращает строку env в list[str]. Принимает CSV или JSON."""
@@ -139,6 +152,15 @@ GOOGLE_OAUTH_CLIENT_IDS = _parse_list(env.google_oauth_client_ids)
 
 FRONTEND_URL = env.frontend_url.rstrip("/")
 
+# ---------- Deep linking -------------------------------------------------
+# Хост без схемы и слешей — для генерации абсолютных canonical/OG URL на
+# landing-страницах. Отпечатки нормализуем в верхний регистр (как keytool).
+
+DEEPLINK_DOMAIN = env.deeplink_domain.strip().strip("/")
+ANDROID_PACKAGE_NAME = env.android_package_name.strip()
+ANDROID_CERT_FINGERPRINTS = [fp.upper() for fp in _parse_list(env.android_cert_fingerprints)]
+PLAY_STORE_URL = env.play_store_url.strip()
+
 # ---------- Email (Gmail SMTP) -------------------------------------------
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -190,6 +212,7 @@ INSTALLED_APPS = [
     "apps.geocoding",
     "apps.reviews",
     "apps.community",
+    "apps.deeplinks",
 ]
 
 AUTH_USER_MODEL = "users.User"
