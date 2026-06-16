@@ -46,18 +46,28 @@ _GENERIC_TITLES = {
     ENTITY_EVENT: "Событие в Go",
 }
 
-# Человекочитаемые подписи вайбов. В profile.preferred_vibes лежат сырые теги
-# PlaceVibeTag.values; страница на русском — переводим тут. Неизвестный тег
-# (на случай рассинхрона с PlaceVibeTag) показываем как есть.
-_VIBE_LABELS = {
-    "calm": "Спокойствие",
-    "active": "Активность",
-    "productive": "Продуктивность",
-    "romantic": "Романтика",
-    "musical": "Музыка",
-    "gaming": "Игры",
-    "networking": "Нетворкинг",
+# Подписи и цвета вайбов. Источник правды — mobile/lib/core/model/vibe.dart
+# (enum Vibe): держим лейблы и hex синхронными с бейджами в профиле приложения.
+# В profile.preferred_vibes лежат сырые теги PlaceVibeTag.values.
+_VIBES: dict[str, tuple[str, str]] = {
+    "calm": ("Спокойно", "#6EC3EB"),
+    "active": ("Движ", "#FF7957"),
+    "productive": ("Продуктивно", "#AAB1F7"),
+    "romantic": ("Романтично", "#FF8FB4"),
+    "musical": ("Музыка", "#E98DFE"),
+    "gaming": ("Игры", "#DDC52B"),
+    "networking": ("Нетворкинг", "#70DDB1"),
 }
+# Цвет для неизвестного тега (рассинхрон с PlaceVibeTag) — нейтральный.
+_VIBE_FALLBACK_COLOR = "#8A8A8A"
+
+
+@dataclass(frozen=True)
+class VibeChip:
+    """Вайб для отрисовки чипом: русский лейбл + hex-цвет (как в профиле)."""
+
+    label: str
+    color: str
 
 
 @dataclass(frozen=True)
@@ -68,22 +78,22 @@ class LinkPreview:
     title: str
     description: str = ""
     image_url: str = ""
-    # Человекочитаемые подписи вайбов (только у профиля). Рисуются чипами на
-    # странице и подмешиваются в OG-описание (см. og_description).
-    vibes: tuple[str, ...] = ()
+    # Вайбы (только у профиля). Рисуются цветными чипами на странице и
+    # подмешиваются лейблами в OG-описание (см. og_description).
+    vibes: tuple[VibeChip, ...] = ()
     # found=False — дженерик-заглушка (сущности нет/приватна/битый id).
     found: bool = True
 
     @property
     def og_description(self) -> str:
         """
-        Текст для og:/twitter:description. Чипы вайбов мессенджеры не видят,
-        поэтому вплетаем их в описание-строку (иначе превью профиля в чате
-        потеряет вайбы).
+        Текст для og:/twitter:description. Цвета чипов мессенджеры не видят,
+        поэтому вплетаем лейблы вайбов в описание-строку (иначе превью профиля
+        в чате потеряет вайбы).
         """
         if not self.vibes:
             return self.description
-        vibes_str = "Вайбы: " + ", ".join(self.vibes)
+        vibes_str = "Вайбы: " + ", ".join(v.label for v in self.vibes)
         return f"{self.description} · {vibes_str}" if self.description else vibes_str
 
 
@@ -144,7 +154,10 @@ def _user_preview(entity_id: str) -> LinkPreview | None:
     )
     if user is None:
         return None
-    vibes = tuple(_VIBE_LABELS.get(v, v) for v in (user.preferred_vibes or []))
+    vibes = tuple(
+        VibeChip(*_VIBES.get(tag, (tag, _VIBE_FALLBACK_COLOR)))
+        for tag in (user.preferred_vibes or [])
+    )
     return LinkPreview(
         og_type="profile",
         title=user.public_name or "Профиль в Go",

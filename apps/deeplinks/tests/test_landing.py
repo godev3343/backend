@@ -68,11 +68,13 @@ def test_user_preview_renders_vibes(client):
     assert resp.status_code == 200
     html = resp.content.decode()
     assert 'property="og:type" content="profile"' in html
-    # Чипы вайбов на странице (русские подписи).
-    assert "Спокойствие" in html
-    assert "Романтика" in html
-    # И в OG-описании — мессенджеры чипы не видят.
-    assert "Вайбы: Спокойствие, Романтика" in html
+    # Чипы вайбов на странице — лейблы и цвета как в профиле (vibe.dart).
+    assert "Спокойно" in html
+    assert "Романтично" in html
+    assert "#6EC3EB" in html  # calm
+    assert "#FF8FB4" in html  # romantic
+    # И в OG-описании — мессенджеры чипы/цвета не видят.
+    assert "Вайбы: Спокойно, Романтично" in html
     assert "люблю кофе" in html
 
 

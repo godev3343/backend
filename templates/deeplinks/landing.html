@@ -99,14 +99,14 @@
       gap: 8px;
       margin: 0 0 28px;
     }
+    /* soft-вариант как VibeBadge в профиле: заливка цветом @20%, текст цветом
+       вайба. Сам цвет приходит инлайном на каждый чип. */
     .vibe {
-      font-family: var(--mono);
-      font-size: 12px;
-      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1;
+      padding: 7px 13px;
       border-radius: 999px;
-      border: 1px solid var(--border);
-      color: var(--accent);
-      background: rgba(207, 255, 94, .06);
     }
     .foot {
       margin: 20px 0 0;
@@ -129,7 +129,7 @@
       {% if preview.description %}<p class="desc">{{ preview.description }}</p>{% endif %}
       {% if preview.vibes %}
         <div class="vibes">
-          {% for vibe in preview.vibes %}<span class="vibe">{{ vibe }}</span>{% endfor %}
+          {% for vibe in preview.vibes %}<span class="vibe" style="color:{{ vibe.color }};background:{{ vibe.color }}33;">{{ vibe.label }}</span>{% endfor %}
         </div>
       {% endif %}
       {% if play_store_url %}
