@@ -10,14 +10,14 @@
   <meta property="og:type" content="{{ preview.og_type }}">
   <meta property="og:site_name" content="Go">
   <meta property="og:title" content="{{ preview.title }}">
-  {% if preview.description %}<meta property="og:description" content="{{ preview.description }}">{% endif %}
+  {% if preview.og_description %}<meta property="og:description" content="{{ preview.og_description }}">{% endif %}
   <meta property="og:url" content="{{ canonical_url }}">
   {% if preview.image_url %}<meta property="og:image" content="{{ preview.image_url }}">{% endif %}
 
   {# --- Twitter Card --- #}
   <meta name="twitter:card" content="{% if preview.image_url %}summary_large_image{% else %}summary{% endif %}">
   <meta name="twitter:title" content="{{ preview.title }}">
-  {% if preview.description %}<meta name="twitter:description" content="{{ preview.description }}">{% endif %}
+  {% if preview.og_description %}<meta name="twitter:description" content="{{ preview.og_description }}">{% endif %}
   {% if preview.image_url %}<meta name="twitter:image" content="{{ preview.image_url }}">{% endif %}
 
   <link rel="canonical" href="{{ canonical_url }}">
@@ -93,6 +93,21 @@
       font-size: 15px;
     }
     a.cta:active { opacity: .85; }
+    .vibes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 28px;
+    }
+    .vibe {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      background: rgba(207, 255, 94, .06);
+    }
     .foot {
       margin: 20px 0 0;
       text-align: center;
@@ -112,6 +127,11 @@
       <p class="kicker">Go</p>
       <h1>{{ preview.title }}</h1>
       {% if preview.description %}<p class="desc">{{ preview.description }}</p>{% endif %}
+      {% if preview.vibes %}
+        <div class="vibes">
+          {% for vibe in preview.vibes %}<span class="vibe">{{ vibe }}</span>{% endfor %}
+        </div>
+      {% endif %}
       {% if play_store_url %}
         <a class="cta" href="{{ play_store_url }}" rel="noopener">Открыть в приложении Go</a>
       {% endif %}

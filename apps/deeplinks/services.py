@@ -46,6 +46,19 @@ _GENERIC_TITLES = {
     ENTITY_EVENT: "Событие в Go",
 }
 
+# Человекочитаемые подписи вайбов. В profile.preferred_vibes лежат сырые теги
+# PlaceVibeTag.values; страница на русском — переводим тут. Неизвестный тег
+# (на случай рассинхрона с PlaceVibeTag) показываем как есть.
+_VIBE_LABELS = {
+    "calm": "Спокойствие",
+    "active": "Активность",
+    "productive": "Продуктивность",
+    "romantic": "Романтика",
+    "musical": "Музыка",
+    "gaming": "Игры",
+    "networking": "Нетворкинг",
+}
+
 
 @dataclass(frozen=True)
 class LinkPreview:
@@ -55,8 +68,23 @@ class LinkPreview:
     title: str
     description: str = ""
     image_url: str = ""
+    # Человекочитаемые подписи вайбов (только у профиля). Рисуются чипами на
+    # странице и подмешиваются в OG-описание (см. og_description).
+    vibes: tuple[str, ...] = ()
     # found=False — дженерик-заглушка (сущности нет/приватна/битый id).
     found: bool = True
+
+    @property
+    def og_description(self) -> str:
+        """
+        Текст для og:/twitter:description. Чипы вайбов мессенджеры не видят,
+        поэтому вплетаем их в описание-строку (иначе превью профиля в чате
+        потеряет вайбы).
+        """
+        if not self.vibes:
+            return self.description
+        vibes_str = "Вайбы: " + ", ".join(self.vibes)
+        return f"{self.description} · {vibes_str}" if self.description else vibes_str
 
 
 def _clip(text: str, limit: int = _DESCRIPTION_LIMIT) -> str:
@@ -116,11 +144,13 @@ def _user_preview(entity_id: str) -> LinkPreview | None:
     )
     if user is None:
         return None
+    vibes = tuple(_VIBE_LABELS.get(v, v) for v in (user.preferred_vibes or []))
     return LinkPreview(
         og_type="profile",
         title=user.public_name or "Профиль в Go",
         description=_clip(user.bio),
         image_url=_media_url(lambda: user.avatar_url),
+        vibes=vibes,
     )
 
 

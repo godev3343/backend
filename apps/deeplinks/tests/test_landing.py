@@ -58,6 +58,35 @@ def test_place_preview_uses_place_name(client):
     assert 'property="og:type" content="website"' in html
 
 
+def test_user_preview_renders_vibes(client):
+    from apps.users.tests.factories import UserFactory
+
+    user = UserFactory(display_name="Алия", bio="люблю кофе", preferred_vibes=["calm", "romantic"])
+
+    resp = client.get(f"/users/{user.id}")
+
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert 'property="og:type" content="profile"' in html
+    # Чипы вайбов на странице (русские подписи).
+    assert "Спокойствие" in html
+    assert "Романтика" in html
+    # И в OG-описании — мессенджеры чипы не видят.
+    assert "Вайбы: Спокойствие, Романтика" in html
+    assert "люблю кофе" in html
+
+
+def test_user_preview_without_vibes_has_no_vibe_block(client):
+    from apps.users.tests.factories import UserFactory
+
+    user = UserFactory(display_name="Бекзат", preferred_vibes=[])
+
+    resp = client.get(f"/users/{user.id}")
+
+    assert resp.status_code == 200
+    assert 'class="vibe"' not in resp.content.decode()
+
+
 def test_play_store_button_shown_when_configured(client, settings):
     settings.PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.go.app.go_app"
 
